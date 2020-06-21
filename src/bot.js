@@ -1,7 +1,7 @@
 var Discord = require('discord.js');
 var logger = require('winston');
 var auth = require('./auth.json');
-var User = require("./src/user.js")
+var User = require("./user.js")
 const MongoClient = require('mongodb').MongoClient;
 const roles = ["F2P","Normal League", "Sadistic League", "Evil League","Whales League", "Unranked"];
 
