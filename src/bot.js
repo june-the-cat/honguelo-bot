@@ -17,7 +17,7 @@ mongo.connect(err => {
 });
 
 var seasons;
-var season_one;
+var current_season;
 mongo.connect(err => {
     seasons = mongo.db("user_data").collection("seasons");
     seasons.findOne({
@@ -29,13 +29,13 @@ mongo.connect(err => {
             seasons.insertOne({
                 "number": 1,
                 "best_roll": -1,
-                "best_averege": -1
+                "best_average": -1
             }, (err, res) => {
                 if (err) throw err;
-                season_one = res
+                current_season = res
             });
         else
-            season_one = result;
+            current_season = result;
     })
 });
 
@@ -134,19 +134,19 @@ function rollElo(user, evt) {
 }
 
 function updateSeason(rollres, rolls, user) {
-    var newCurrentSeason = {"number" : season_one.number};
+    var newCurrentSeason = {"number" : current_season.number};
 
-    if (rollres > season_one.best_roll) {
+    if (rollres > current_season.best_roll) {
         newCurrentSeason.best_roll = rollres;
         newCurrentSeason.best_roller = user;
     }
-    avg = averege(rolls);
-    if (avg > season_one.best_averege) {
-        newCurrentSeason.best_averege = avg;
-        newCurrentSeason.best_avereger = user;
+    avg = average(rolls);
+    if (avg > current_season.best_average) {
+        newCurrentSeason.best_average = avg;
+        newCurrentSeason.best_averager = user;
     }
 
-    season_one = newCurrentSeason;
+    current_season = newCurrentSeason;
     seasons.updateOne({
         "number": newCurrentSeason.number
     }, { $set: newCurrentSeason}, (err, res) => {
@@ -160,7 +160,7 @@ function roll() {
     return res;
 }
 
-function calcaverege(user, evt) {
+function calcaverage(user, evt) {
     rolls.findOne({
         "userid": user.id
     }, (err, result) => {
@@ -173,13 +173,13 @@ function calcaverege(user, evt) {
             userRes = result;
         }
 
-        var avg = averege(userRes.rolls);
+        var avg = average(userRes.rolls);
 
-        evt.reply("your averege is " + avg.toString());
+        evt.reply("your average is " + avg.toString());
     });
 }
 
-function averege(data) {
+function average(data) {
     var avg = 0;
 
     if (data.length) {
@@ -232,7 +232,7 @@ function helpMessage() {
         "=Average: Shows your roll averages for the season so far\n" +
         "=Top: Displays your highest roll for the season so far\n" +
         "=Countdown: Displays time until next roll reset\n" +
-        "=Best: Shows the best roll for the season and the best averege for the season```";
+        "=Best: Shows the best roll for the season and the best average for the season```";
 }
 
 function leaguesMessage() {
@@ -254,8 +254,8 @@ function countdown() {
 }
 
 function best() {
-    return "the best roll for this season is `" + season_one.best_roll + "` from `" + season_one.best_roller.username + "`.\n" +
-        "the best averege for this season is `" + season_one.best_averege + "` from `" + season_one.best_avereger.username + "`.";
+    return "the best roll for this season is `" + current_season.best_roll + "` from `" + current_season.best_roller.username + "`.\n" +
+        "the best average for this season is `" + current_season.best_average + "` from `" + current_season.best_averager.username + "`.";
 }
 
 function handleMessage(evt) {
@@ -291,7 +291,7 @@ function handleMessage(evt) {
                 break;
                 // =average
             case 'average':
-                calcaverege(evt.author, evt);
+                calcaverage(evt.author, evt);
                 break;
                 // =last
             case 'last':
