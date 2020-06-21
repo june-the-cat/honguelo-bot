@@ -1,0 +1,14 @@
+[Unit]
+Description=honguelo bot
+
+[Service]
+ExecStart=/honguelo-bot/src/bot.js
+Restart=always
+User=nobody
+Group=nogroup
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=NODE_ENV=production
+WorkingDirectory=/honguelo-bot
+
+[Install]
+WantedBy=multi-user.target
