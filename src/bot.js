@@ -6,6 +6,7 @@ var auth = require('./auth.json');
 var User = require("./user.js")
 const MongoClient = require('mongodb').MongoClient;
 const roles = ["F2P", "Normal League", "Sadistic League", "Evil League", "Whales League", "Unranked"];
+const roles_levels = [100, 2000, 3000, 4000, 5001];
 
 const uri = auth.mongoConnectionString;
 const mongo = new MongoClient(uri, {
@@ -124,7 +125,12 @@ function rollElo(user, evt) {
                 evt.member.roles.remove(ro.id);
             };
 
-            var roleName = roles[Math.floor(rollres / 1000)];
+            var roleName = null;
+            var i = 0;
+            while (roleName === null) {
+                if (rollres < roles_levels[i])
+                    roleName = roles[i];
+            }
             var role = evt.guild.roles.cache.find(role => role.name === roleName);
             evt.member.roles.add(role);
         }
@@ -134,7 +140,9 @@ function rollElo(user, evt) {
 }
 
 function updateSeason(rollres, rolls, user) {
-    var newCurrentSeason = {"number" : current_season.number};
+    var newCurrentSeason = {
+        "number": current_season.number
+    };
 
     if (rollres > current_season.best_roll) {
         newCurrentSeason.best_roll = rollres;
@@ -149,7 +157,9 @@ function updateSeason(rollres, rolls, user) {
     current_season = newCurrentSeason;
     seasons.updateOne({
         "number": newCurrentSeason.number
-    }, { $set: newCurrentSeason}, (err, res) => {
+    }, {
+        $set: newCurrentSeason
+    }, (err, res) => {
         if (err) throw err;
     });
 }
