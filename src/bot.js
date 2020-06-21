@@ -16,6 +16,29 @@ mongo.connect(err => {
     rolls = mongo.db("user_data").collection("rolls");
 });
 
+var seasons;
+var season_one;
+mongo.connect(err => {
+    seasons = mongo.db("user_data").collection("seasons");
+    seasons.findOne({
+        "number": 1
+    }, (error, result) => {
+        if (error) throw error;
+
+        if (!result)
+            seasons.insertOne({
+                "number": 1,
+                "best_roll": -1,
+                "best_averege": -1
+            }, (err, res) => {
+                if (err) throw err;
+                season_one = res
+            });
+        else
+            season_one = result;
+    })
+});
+
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -51,8 +74,8 @@ function rollElo(user, evt) {
 
         var midnight = new Date();
         midnight.setHours(0, 0, 0, 0);
-        if (userRes.lastRoll >= midnight) {
-            //if(userRes.lastRoll >= (new Date()).setSeconds(0,0)){
+        //if (userRes.lastRoll >= midnight) {
+        if (userRes.lastRoll >= (new Date()).setSeconds(0, 0)) {
             var getout = client.emojis.cache.find(emoji => emoji.name === "getout");
             reply = `you already had your roll today. ${getout}`;
         } else {
@@ -60,14 +83,20 @@ function rollElo(user, evt) {
 
             var reply = rollres.toString();
             if (userRes._id === null) {
-                var insert = {
-                    rolls: [rollres],
+                userrolls = [rollres];
+                var u = {
+                    rolls: userrolls,
                     userid: user.id,
                     username: user.username,
                     lastRoll: new Date()
                 };
-                rolls.insertOne(insert);
+                rolls.insertOne(insert, (err, res) => {
+                    if (err) throw err;
+                    console.log("saved one value")
+                    updateSeason(rollres, [rollres], u);
+                });
             } else {
+                userRes.rolls.push(rollres);
                 var query = {
                     _id: userRes._id
                 };
@@ -79,9 +108,11 @@ function rollElo(user, evt) {
                         lastRoll: new Date()
                     }
                 };
+
                 rolls.updateOne(query, values, (err, res) => {
                     if (err) throw err;
                     console.log("saved one value")
+                    updateSeason(rollres, userRes.rolls, userRes);
                 });
             }
 
@@ -99,6 +130,27 @@ function rollElo(user, evt) {
         }
 
         evt.reply(reply);
+    });
+}
+
+function updateSeason(rollres, rolls, user) {
+    var newCurrentSeason = {"number" : season_one.number};
+
+    if (rollres > season_one.best_roll) {
+        newCurrentSeason.best_roll = rollres;
+        newCurrentSeason.best_roller = user;
+    }
+    avg = averege(rolls);
+    if (avg > season_one.best_averege) {
+        newCurrentSeason.best_averege = avg;
+        newCurrentSeason.best_avereger = user;
+    }
+
+    season_one = newCurrentSeason;
+    seasons.updateOne({
+        "number": newCurrentSeason.number
+    }, { $set: newCurrentSeason}, (err, res) => {
+        if (err) throw err;
     });
 }
 
@@ -121,16 +173,22 @@ function calcaverege(user, evt) {
             userRes = result;
         }
 
-        var avg = 0;
-
-        if (userRes.rolls.length) {
-            for (var i = 0; i < userRes.rolls.length; i++)
-                avg += userRes.rolls[i];
-            avg /= userRes.rolls.length;
-        }
+        var avg = averege(userRes.rolls);
 
         evt.reply("your averege is " + avg.toString());
     });
+}
+
+function averege(data) {
+    var avg = 0;
+
+    if (data.length) {
+        for (var i = 0; i < data.length; i++)
+            avg += data[i];
+        avg /= data.length;
+    }
+
+    return avg;
 }
 
 function lastRoll(user, evt) {
@@ -172,7 +230,9 @@ function helpMessage() {
         "=Last: Shows your last roll\n" +
         "=Leagues: Displays the leagues, and how to get them\n" +
         "=Average: Shows your roll averages for the season so far\n" +
-        "=Top: Displays your highest roll for the season so far```";
+        "=Top: Displays your highest roll for the season so far\n" +
+        "=Countdown: Displays time until next roll reset\n" +
+        "=Best: Shows the best roll for the season and the best averege for the season```";
 }
 
 function leaguesMessage() {
@@ -183,6 +243,19 @@ function leaguesMessage() {
         "2000-3999: Evil\n" +
         "4000-4900: Sadistic\n" +
         "4901-5000: Whales";
+}
+
+function countdown() {
+    var next = new Date();
+    next.setHours(0, 0, 0, 0);
+    next.setDate(next.getDate() + 1);
+    var diff = new Date(next - new Date());
+    return "next roll avaible in " + diff.getHours() + " hours, " + diff.getMinutes() + " minutes, " + diff.getSeconds() + " seconds."
+}
+
+function best() {
+    return "the best roll for this season is `" + season_one.best_roll + "` from `" + season_one.best_roller.username + "`.\n" +
+        "the best averege for this season is `" + season_one.best_averege + "` from `" + season_one.best_avereger.username + "`.";
 }
 
 function handleMessage(evt) {
@@ -227,6 +300,14 @@ function handleMessage(evt) {
                 // =top
             case 'top':
                 findtop(evt.author, evt);
+                break;
+                // =countdown
+            case 'countdown':
+                evt.reply(countdown());
+                break;
+                // =best
+            case 'best':
+                evt.reply(best());
                 break;
         }
     }
