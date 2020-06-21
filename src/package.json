@@ -1,5 +1,5 @@
 {
-  "name": "HONGUELO™ BOT",
+  "name": "@honguelo/bot",
   "version": "1.0.0",
   "description": "Official HONGUELO™ bot.",
   "main": "bot.js",
