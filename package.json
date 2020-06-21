@@ -1,0 +1,13 @@
+{
+  "name": "HONGUELO™ BOT",
+  "version": "1.0.0",
+  "description": "Official HONGUELO™ bot.",
+  "main": "bot.js",
+  "author": "June",
+  "dependencies": {
+    "discord.io": "https://github.com/woor/discord.io/tarball/gateway_v6",
+    "discord.js": "^12.2.0",
+    "mongodb": "^3.5.9",
+    "winston": "^3.2.1"
+  }
+}
