@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+var debug = true;
+
 var Discord = require('discord.js');
 var logger = require('winston');
 var schedule = require('node-schedule');
@@ -23,28 +25,31 @@ var seasons;
 var current_season = null;
 mongo.connect(err => {
     seasons = mongo.db("user_data").collection("seasons");
+
+    current_season = {
+        "number": 1,
+        "best_roll": -1,
+        "best_average": -1,
+        "best_roller" : null
+    };
+
+    grabSeason();
+});
+
+function grabSeason(){
     seasons.findOne({
         "number": 1
     }, (error, result) => {
         if (error) throw error;
 
-        current_season = {
-            "number": 1,
-            "best_roll": -1,
-            "best_average": -1,
-            "best_roller" : null
-        };
-
         if (!result){
             seasons.insertOne(current_season, (err, res) => {
                 if (err) throw err;
-                current_season = res
             });
         }else
             current_season = result;
     })
-});
-
+}
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -301,6 +306,7 @@ function countdown() {
 }
 
 function best() {
+    grabSeason();
     if(current_season.best_roller === null) return "there have been no rolls this season so far";
     return "the best roll for this season is `" + current_season.best_roll + "` from `" + current_season.best_roller.username + "`.\n" +
         "the best average for this season is `" + current_season.best_average + "` from `" + current_season.best_averager.username + "`.";
