@@ -103,8 +103,8 @@ function rollElo(user, evt) {
 
         var midnight = new Date();
         midnight.setHours(0, 0, 0, 0);
-        //if (userRes.lastRoll >= midnight) {
-        if (userRes.lastRoll >= (new Date()).setSeconds(0, 0)) {
+        if (userRes.lastRoll >= midnight) {
+        //if (userRes.lastRoll >= (new Date()).setSeconds(0, 0)) {
             var getout = client.emojis.cache.find(emoji => emoji.name === "getout");
             reply = `you already had your roll today. ${getout}`;
         } else {
