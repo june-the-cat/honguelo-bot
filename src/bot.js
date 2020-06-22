@@ -7,7 +7,7 @@ var auth = require('./auth.json');
 var User = require("./user.js");
 const MongoClient = require('mongodb').MongoClient;
 const package = require('../package.json');
-const roles = ["F2P", "Normal League", "Sadistic League", "Evil League", "Whales League", "Unranked"];
+const roles = ["F2P", "Normal League", "Evil League", "Sadistic League", "Whales League", "Unranked"];
 const roles_levels = [100, 2000, 3000, 4000, 5001];
 
 const uri = auth.mongoConnectionString;
