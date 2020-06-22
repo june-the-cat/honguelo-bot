@@ -2,8 +2,9 @@
 
 var Discord = require('discord.js');
 var logger = require('winston');
+var schedule = require('node-schedule');
 var auth = require('./auth.json');
-var User = require("./user.js")
+var User = require("./user.js");
 const MongoClient = require('mongodb').MongoClient;
 const roles = ["F2P", "Normal League", "Sadistic League", "Evil League", "Whales League", "Unranked"];
 const roles_levels = [100, 2000, 3000, 4000, 5001];
@@ -18,7 +19,7 @@ mongo.connect(err => {
 });
 
 var seasons;
-var current_season;
+var current_season = null;
 mongo.connect(err => {
     seasons = mongo.db("user_data").collection("seasons");
     seasons.findOne({
@@ -26,16 +27,19 @@ mongo.connect(err => {
     }, (error, result) => {
         if (error) throw error;
 
-        if (!result)
-            seasons.insertOne({
-                "number": 1,
-                "best_roll": -1,
-                "best_average": -1
-            }, (err, res) => {
+        current_season = {
+            "number": 1,
+            "best_roll": -1,
+            "best_average": -1,
+            "best_roller" : null
+        };
+
+        if (!result){
+            seasons.insertOne(current_season, (err, res) => {
                 if (err) throw err;
                 current_season = res
             });
-        else
+        }else
             current_season = result;
     })
 });
@@ -57,6 +61,30 @@ client.on('ready', () => {
 });
 
 client.on('message', handleMessage);
+
+var midnightPost = schedule.scheduleJob('0 0 0 * * *', function(){
+    if(current_season === null || current_season.best_roller === null) return;
+
+    var msg = "```It is currently midnight.\n" +
+    "The best roll so far is " + current_season.best_roll + " from " + current_season.best_roller.username + ".\n";
+
+    rolls.find({},{ projection: { _id: 0, username: 1, average : 1 } }).sort({average : -1}).toArray((err, res) => {
+        if(err) throw err;
+
+        var tot = 10;
+        if(res.length < tot)
+            tot = res.length;
+        msg += "The top " + tot + " averages are: ";
+
+        for(var i = 0; i < tot; i++){
+            msg += "\n" + (i+1) + " - " + res[i].username + ": " + res[i].average + "";
+        }
+
+        msg += "\n\nYou can now roll again.```"; 
+
+        client.channels.cache.get('723818579845185536').send(msg);
+    });
+});
 
 function rollElo(user, evt) {
     rolls.findOne({
@@ -85,8 +113,9 @@ function rollElo(user, evt) {
             var reply = rollres.toString();
             if (userRes._id === null) {
                 userrolls = [rollres];
-                var u = {
+                var insert = {
                     rolls: userrolls,
+                    average : average(userrolls),
                     userid: user.id,
                     username: user.username,
                     lastRoll: new Date()
@@ -106,7 +135,8 @@ function rollElo(user, evt) {
                         rolls: rollres
                     },
                     $set: {
-                        lastRoll: new Date()
+                        lastRoll: new Date(),
+                        average : average(userRes.rolls)
                     }
                 };
 
@@ -130,6 +160,7 @@ function rollElo(user, evt) {
             while (roleName === null) {
                 if (rollres < roles_levels[i])
                     roleName = roles[i];
+                i++;
             }
             var role = evt.guild.roles.cache.find(role => role.name === roleName);
             evt.member.roles.add(role);
@@ -183,9 +214,12 @@ function calcaverage(user, evt) {
             userRes = result;
         }
 
-        var avg = average(userRes.rolls);
-
+        if(userRes.rolls.length === 0){
+            evt.reply("you have not rolled yet");
+        } else {
+        var avg = userRes.average;
         evt.reply("your average is " + avg.toString());
+        }
     });
 }
 
@@ -227,7 +261,7 @@ function findtop(user, evt) {
             evt.reply("you haven't rolled yet. Use the command =roll to start playing.");
             return;
         } else {
-            evt.reply("your top roll was " + Math.max(result.rolls).toString());
+            evt.reply("your top roll was " + Math.max(...result.rolls).toString());
         }
 
     });
@@ -242,7 +276,8 @@ function helpMessage() {
         "=Average: Shows your roll averages for the season so far\n" +
         "=Top: Displays your highest roll for the season so far\n" +
         "=Countdown: Displays time until next roll reset\n" +
-        "=Best: Shows the best roll for the season and the best average for the season```";
+        "=Best: Shows the best roll for the season and the best average for the season\n" +
+        "=Rank: Shows your rank compared to everyone else's```";
 }
 
 function leaguesMessage() {
@@ -264,8 +299,31 @@ function countdown() {
 }
 
 function best() {
+    if(current_season.best_roller === null) return "there have been no rolls this season so far";
     return "the best roll for this season is `" + current_season.best_roll + "` from `" + current_season.best_roller.username + "`.\n" +
         "the best average for this season is `" + current_season.best_average + "` from `" + current_season.best_averager.username + "`.";
+}
+
+function rank(evt){
+    rolls.find({},{ projection: { _id: 0, username: 1, average : 1, userid : 1 } }).sort({average : -1}).toArray((err, res) => {
+        if(err) throw err;
+
+        var position = 0;
+        while(position < res.length && res[position].userid != evt.author.id){
+            position++;
+        }
+
+        if(position === res.length)
+            evt.reply("You have not rolled yet.");
+        else{
+            position++;
+            var suffix = "th";
+            if(position === 1) suffix = "st";
+            else if(position === 2) suffix = "nd";
+            else if(position === 3) suffix = "rd"; 
+            evt.reply("at the moment, you are ranked " + position + suffix + ".");
+        }
+    });
 }
 
 function handleMessage(evt) {
@@ -318,6 +376,9 @@ function handleMessage(evt) {
                 // =best
             case 'best':
                 evt.reply(best());
+                break;
+            case 'rank':
+                rank(evt);
                 break;
         }
     }
