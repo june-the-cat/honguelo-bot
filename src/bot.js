@@ -123,7 +123,7 @@ function rollElo(user, evt) {
                 rolls.insertOne(insert, (err, res) => {
                     if (err) throw err;
                     console.log("saved one value")
-                    updateSeason(rollres, [rollres], u);
+                    updateSeason(rollres, [rollres], userRes);
                 });
             } else {
                 userRes.rolls.push(rollres);
