@@ -6,6 +6,7 @@ var schedule = require('node-schedule');
 var auth = require('./auth.json');
 var User = require("./user.js");
 const MongoClient = require('mongodb').MongoClient;
+const package = require('../package.json');
 const roles = ["F2P", "Normal League", "Sadistic League", "Evil League", "Whales League", "Unranked"];
 const roles_levels = [100, 2000, 3000, 4000, 5001];
 
@@ -337,9 +338,9 @@ function handleMessage(evt) {
         var cmd = args[0];
         args = args.splice(1);
         switch (cmd) {
-            // =ping
-            case 'ping':
-                evt.reply('Pong!');
+            // =version
+            case 'version':
+                evt.reply(package.version);
                 break;
                 // =roll
             case 'roll':
