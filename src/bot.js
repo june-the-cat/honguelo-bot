@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-var debug = true;
-
 var Discord = require('discord.js');
 var logger = require('winston');
 var schedule = require('node-schedule');
@@ -25,31 +23,27 @@ var seasons;
 var current_season = null;
 mongo.connect(err => {
     seasons = mongo.db("user_data").collection("seasons");
-
-    current_season = {
-        "number": 1,
-        "best_roll": -1,
-        "best_average": -1,
-        "best_roller" : null
-    };
-
-    grabSeason();
-});
-
-function grabSeason(){
     seasons.findOne({
         "number": 1
     }, (error, result) => {
         if (error) throw error;
 
-        if (!result){
+        current_season = {
+            "number": 1,
+            "best_roll": -1,
+            "best_average": -1,
+            "best_roller": null
+        };
+
+        if (!result) {
             seasons.insertOne(current_season, (err, res) => {
                 if (err) throw err;
             });
-        }else
+        } else
             current_season = result;
     })
-}
+});
+
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -68,25 +62,33 @@ client.on('ready', () => {
 
 client.on('message', handleMessage);
 
-var midnightPost = schedule.scheduleJob('0 0 0 * * *', function(){
-    if(current_season === null || current_season.best_roller === null) return;
+var midnightPost = schedule.scheduleJob('0 0 0 * * *', function () {
+    if (current_season === null || current_season.best_roller === null) return;
 
     var msg = "```It is currently midnight.\n" +
-    "The best roll so far is " + current_season.best_roll + " from " + current_season.best_roller.username + ".\n";
+        "The best roll so far is " + current_season.best_roll + " from " + current_season.best_roller.username + ".\n";
 
-    rolls.find({},{ projection: { _id: 0, username: 1, average : 1 } }).sort({average : -1}).toArray((err, res) => {
-        if(err) throw err;
+    rolls.find({}, {
+        projection: {
+            _id: 0,
+            username: 1,
+            average: 1
+        }
+    }).sort({
+        average: -1
+    }).toArray((err, res) => {
+        if (err) throw err;
 
         var tot = 10;
-        if(res.length < tot)
+        if (res.length < tot)
             tot = res.length;
         msg += "The top " + tot + " averages are: ";
 
-        for(var i = 0; i < tot; i++){
-            msg += "\n" + (i+1) + " - " + res[i].username + ": " + res[i].average + "";
+        for (var i = 0; i < tot; i++) {
+            msg += "\n" + (i + 1) + " - " + res[i].username + ": " + res[i].average + "";
         }
 
-        msg += "\n\nYou can now roll again.```"; 
+        msg += "\n\nYou can now roll again.```";
 
         client.channels.cache.get('723818579845185536').send(msg);
     });
@@ -111,7 +113,7 @@ function rollElo(user, evt) {
         var midnight = new Date();
         midnight.setHours(0, 0, 0, 0);
         if (userRes.lastRoll >= midnight) {
-        //if (userRes.lastRoll >= (new Date()).setSeconds(0, 0)) {
+            //if (userRes.lastRoll >= (new Date()).setSeconds(0, 0)) {
             var getout = client.emojis.cache.find(emoji => emoji.name === "getout");
             reply = `you already had your roll today. ${getout}`;
         } else {
@@ -122,7 +124,7 @@ function rollElo(user, evt) {
                 userrolls = [rollres];
                 var insert = {
                     rolls: userrolls,
-                    average : average(userrolls),
+                    average: average(userrolls),
                     userid: user.id,
                     username: user.username,
                     lastRoll: new Date()
@@ -143,7 +145,7 @@ function rollElo(user, evt) {
                     },
                     $set: {
                         lastRoll: new Date(),
-                        average : average(userRes.rolls)
+                        average: average(userRes.rolls)
                     }
                 };
 
@@ -199,6 +201,13 @@ function updateSeason(rollres, rolls, user) {
         $set: newCurrentSeason
     }, (err, res) => {
         if (err) throw err;
+
+        seasons.findOne({
+            "number": 1
+        }, (error, result) => {
+            if (error) throw error;
+            current_season = result;
+        });
     });
 }
 
@@ -221,11 +230,11 @@ function calcaverage(user, evt) {
             userRes = result;
         }
 
-        if(userRes.rolls.length === 0){
+        if (userRes.rolls.length === 0) {
             evt.reply("you have not rolled yet");
         } else {
-        var avg = userRes.average;
-        evt.reply("your average is " + avg.toString());
+            var avg = userRes.average;
+            evt.reply("your average is " + avg.toString());
         }
     });
 }
@@ -306,29 +315,37 @@ function countdown() {
 }
 
 function best() {
-    grabSeason();
-    if(current_season.best_roller === null) return "there have been no rolls this season so far";
+    if (current_season.best_roller === null) return "there have been no rolls this season so far";
     return "the best roll for this season is `" + current_season.best_roll + "` from `" + current_season.best_roller.username + "`.\n" +
         "the best average for this season is `" + current_season.best_average + "` from `" + current_season.best_averager.username + "`.";
 }
 
-function rank(evt){
-    rolls.find({},{ projection: { _id: 0, username: 1, average : 1, userid : 1 } }).sort({average : -1}).toArray((err, res) => {
-        if(err) throw err;
+function rank(evt) {
+    rolls.find({}, {
+        projection: {
+            _id: 0,
+            username: 1,
+            average: 1,
+            userid: 1
+        }
+    }).sort({
+        average: -1
+    }).toArray((err, res) => {
+        if (err) throw err;
 
         var position = 0;
-        while(position < res.length && res[position].userid != evt.author.id){
+        while (position < res.length && res[position].userid != evt.author.id) {
             position++;
         }
 
-        if(position === res.length)
+        if (position === res.length)
             evt.reply("You have not rolled yet.");
-        else{
+        else {
             position++;
             var suffix = "th";
-            if(position === 1) suffix = "st";
-            else if(position === 2) suffix = "nd";
-            else if(position === 3) suffix = "rd"; 
+            if (position === 1) suffix = "st";
+            else if (position === 2) suffix = "nd";
+            else if (position === 3) suffix = "rd";
             evt.reply("at the moment, you are ranked " + position + suffix + ".");
         }
     });
