@@ -8,7 +8,7 @@ var User = require("./user.js");
 const MongoClient = require('mongodb').MongoClient;
 const package = require('../package.json');
 const roles = ["F2P", "Normal League", "Evil League", "Sadistic League", "Whales League"];
-const roles_levels = [100, 2000, 3000, 4000, 5001];
+const roles_levels = [100, 2000, 4000, 4901, 5001];
 
 const uri = auth.mongoConnectionString;
 const mongo = new MongoClient(uri, {
@@ -18,32 +18,6 @@ var rolls;
 mongo.connect(err => {
     rolls = mongo.db("user_data").collection("rolls");
 });
-
-var seasons;
-var current_season = null;
-mongo.connect(err => {
-    seasons = mongo.db("user_data").collection("seasons");
-    seasons.findOne({
-        "number": 1
-    }, (error, result) => {
-        if (error) throw error;
-
-        current_season = {
-            "number": 1,
-            "best_roll": -1,
-            "best_average": -1,
-            "best_roller": null
-        };
-
-        if (!result) {
-            seasons.insertOne(current_season, (err, res) => {
-                if (err) throw err;
-            });
-        } else
-            current_season = result;
-    })
-});
-
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -63,34 +37,45 @@ client.on('ready', () => {
 client.on('message', handleMessage);
 
 var midnightPost = schedule.scheduleJob('0 0 0 * * *', function () {
-    if (current_season === null || current_season.best_roller === null) return;
-
-    var msg = "```It is currently midnight.\n" +
-        "The best roll so far is " + current_season.best_roll + " from " + current_season.best_roller.username + ".\n";
-
     rolls.find({}, {
         projection: {
             _id: 0,
             username: 1,
-            average: 1
+            best_roll: 1
         }
     }).sort({
-        average: -1
+        best_roll: -1
     }).toArray((err, res) => {
         if (err) throw err;
+        if (res === null || res.size === null) return;
 
-        var tot = 10;
-        if (res.length < tot)
-            tot = res.length;
-        msg += "The top " + tot + " averages are: ";
+        var msg = "```It is currently midnight.\n" +
+            "The best roll so far is " + res.best_roll + " from " + res.username + ".\n";
 
-        for (var i = 0; i < tot; i++) {
-            msg += "\n" + (i + 1) + " - " + res[i].username + ": " + res[i].average + "";
-        }
+        rolls.find({}, {
+            projection: {
+                _id: 0,
+                username: 1,
+                average: 1
+            }
+        }).sort({
+            average: -1
+        }).toArray((err, res) => {
+            if (err) throw err;
 
-        msg += "\n\nYou can now roll again.```";
+            var tot = 10;
+            if (res.length < tot)
+                tot = res.length;
+            msg += "The top " + tot + " averages are: ";
 
-        client.channels.cache.get('723818579845185536').send(msg);
+            for (var i = 0; i < tot; i++) {
+                msg += "\n" + (i + 1) + " - " + res[i].username + ": " + res[i].average + "";
+            }
+
+            msg += "\n\nYou can now roll again.```";
+
+            client.channels.cache.get('723818579845185536').send(msg);
+        });
     });
 });
 
@@ -126,13 +111,13 @@ function rollElo(user, evt) {
                     rolls: userrolls,
                     average: average(userrolls),
                     userid: user.id,
+                    best_roll: rollres,
                     username: user.username,
                     lastRoll: new Date()
                 };
                 rolls.insertOne(insert, (err, res) => {
                     if (err) throw err;
                     console.log("saved one value")
-                    updateSeason(rollres, [rollres], userRes);
                 });
             } else {
                 userRes.rolls.push(rollres);
@@ -145,6 +130,7 @@ function rollElo(user, evt) {
                     },
                     $set: {
                         lastRoll: new Date(),
+                        best_roll: rollres > user.best_roll ? rollres : user.best_roll,
                         average: average(userRes.rolls)
                     }
                 };
@@ -152,7 +138,6 @@ function rollElo(user, evt) {
                 rolls.updateOne(query, values, (err, res) => {
                     if (err) throw err;
                     console.log("saved one value")
-                    updateSeason(rollres, userRes.rolls, userRes);
                 });
             }
 
@@ -176,38 +161,6 @@ function rollElo(user, evt) {
         }
 
         evt.reply(reply);
-    });
-}
-
-function updateSeason(rollres, rolls, user) {
-    var newCurrentSeason = {
-        "number": current_season.number
-    };
-
-    if (rollres > current_season.best_roll) {
-        newCurrentSeason.best_roll = rollres;
-        newCurrentSeason.best_roller = user;
-    }
-    avg = average(rolls);
-    if (avg > current_season.best_average) {
-        newCurrentSeason.best_average = avg;
-        newCurrentSeason.best_averager = user;
-    }
-
-    current_season = newCurrentSeason;
-    seasons.updateOne({
-        "number": newCurrentSeason.number
-    }, {
-        $set: newCurrentSeason
-    }, (err, res) => {
-        if (err) throw err;
-
-        seasons.findOne({
-            "number": 1
-        }, (error, result) => {
-            if (error) throw error;
-            current_season = result;
-        });
     });
 }
 
@@ -310,14 +263,44 @@ function countdown() {
     var next = new Date();
     next.setHours(0, 0, 0, 0);
     next.setDate(next.getDate() + 1);
-    var diff = new Date(next - new Date());
-    return "next roll avaible in " + diff.getHours() + " hours, " + diff.getMinutes() + " minutes, " + diff.getSeconds() + " seconds."
+    var diffInSec = Math.floor((next - new Date()) / (1000));
+    var diffInMinutes = Math.floor(diffInSec / 60);
+    var diffInHours = Math.floor(diffInMinutes / 60);
+    return "next roll avaible in " + diffInHours + " hours, " + (diffInMinutes - diffInHours * 60) + " minutes, " + (diffInSec - diffInMinutes * 60) + " seconds."
 }
 
-function best() {
-    if (current_season.best_roller === null) return "there have been no rolls this season so far";
-    return "the best roll for this season is `" + current_season.best_roll + "` from `" + current_season.best_roller.username + "`.\n" +
-        "the best average for this season is `" + current_season.best_average + "` from `" + current_season.best_averager.username + "`.";
+function best(evt) {
+    rolls.find({}, {
+        projection: {
+            _id: 0,
+            username: 1,
+            best_roll: 1
+        }
+    }).sort({
+        best_roll: -1
+    }).toArray((err, res1) => {
+        if (err) throw err;
+        if (res1 === null || res1.size === 0) {evt.reply("there have been no rolls this season so far"); return;}
+        
+        console.log(res1)
+        var msg = "the best roll for this season is `" + res1[0].best_roll + "` from `" + res1[0].username + "`.\n"
+
+        rolls.find({}, {
+            projection: {
+                _id: 0,
+                username: 1,
+                average: 1
+            }
+        }).sort({
+            average: -1
+        }).toArray((err, res2) => {
+            if (err) throw err;
+            
+            msg += "The best average for this season is `" + res2[0].average.toFixed(2) + "` from `" + res2[0].username + "`.";
+
+            evt.reply(msg);
+        });
+    });
 }
 
 function rank(evt) {
@@ -400,7 +383,7 @@ function handleMessage(evt) {
                 break;
                 // =best
             case 'best':
-                evt.reply(best());
+                best(evt);
                 break;
             case 'rank':
                 rank(evt);
