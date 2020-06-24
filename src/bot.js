@@ -326,9 +326,9 @@ function rank(evt) {
         else {
             position++;
             var suffix = "th";
-            if (position === 1) suffix = "st";
-            else if (position === 2) suffix = "nd";
-            else if (position === 3) suffix = "rd";
+            if (position % 10 === 1 && position % 100 !== 11) suffix = 'st';
+            if (position % 10 === 2 && position % 100 !== 12) suffix = 'nd';
+            if (position % 10 === 2 && position % 100 !== 13) suffix = 'rd'; //tnx Youri because i'm lazy
             evt.reply("at the moment, you are ranked " + position + suffix + ".");
         }
     });
