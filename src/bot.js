@@ -111,7 +111,7 @@ function rollElo(user, evt) {
                     rolls: userrolls,
                     average: average(userrolls),
                     userid: user.id,
-                    best_roll: rollres,
+                    best_roll: reply,
                     username: user.username,
                     lastRoll: new Date()
                 };
@@ -124,13 +124,14 @@ function rollElo(user, evt) {
                 var query = {
                     _id: userRes._id
                 };
+                var bestroll = reply > user.best_roll ? reply : user.best_roll;
                 var values = {
                     $push: {
-                        rolls: rollres
+                        rolls: reply
                     },
                     $set: {
                         lastRoll: new Date(),
-                        best_roll: rollres > user.best_roll ? rollres : user.best_roll,
+                        best_roll: bestroll,
                         average: average(userRes.rolls)
                     }
                 };
