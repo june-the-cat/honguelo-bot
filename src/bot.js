@@ -124,7 +124,7 @@ function rollElo(user, evt) {
                 var query = {
                     _id: userRes._id
                 };
-                var bestroll = reply > user.best_roll ? reply : user.best_roll;
+                var bestroll = rollres > user.best_roll ? rollres : user.best_roll;
                 var values = {
                     $push: {
                         rolls: rollres
