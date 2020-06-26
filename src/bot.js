@@ -329,7 +329,7 @@ function rank(evt) {
             var suffix = "th";
             if (position % 10 === 1 && position % 100 !== 11) suffix = 'st';
             if (position % 10 === 2 && position % 100 !== 12) suffix = 'nd';
-            if (position % 10 === 2 && position % 100 !== 13) suffix = 'rd'; //tnx Youri because i'm lazy
+            if (position % 10 === 3 && position % 100 !== 13) suffix = 'rd'; //tnx Youri because i'm lazy
             evt.reply("at the moment, you are ranked " + position + suffix + ".");
         }
     });
