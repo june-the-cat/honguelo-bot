@@ -202,6 +202,9 @@ function average(data) {
         avg /= data.length;
     }
 
+    //Round to 2 decimal places
+    avg = Math.round(avg*100)/100
+
     return avg;
 }
 
