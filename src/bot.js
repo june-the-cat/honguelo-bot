@@ -270,7 +270,7 @@ function countdown() {
     var diffInSec = Math.floor((next - new Date()) / (1000));
     var diffInMinutes = Math.floor(diffInSec / 60);
     var diffInHours = Math.floor(diffInMinutes / 60);
-    return "next roll avaible in " + diffInHours + " hours, " + (diffInMinutes - diffInHours * 60) + " minutes, " + (diffInSec - diffInMinutes * 60) + " seconds."
+    return "next roll available in " + diffInHours + " hours, " + (diffInMinutes - diffInHours * 60) + " minutes, " + (diffInSec - diffInMinutes * 60) + " seconds."
 }
 
 function best(evt) {
