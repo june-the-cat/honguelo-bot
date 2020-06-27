@@ -69,6 +69,16 @@ async function findtop(userid) {
     }
 }
 
+async function findBot(userid) {
+    var result = await userRepo.findUserById(userid);
+
+    if (!result) {
+        return "you haven't rolled yet. Use the command =roll to start playing.";
+    } else {
+        return "your top roll was " + Math.min(...result.rolls).toString();
+    }
+}
+
 function helpMessage() {
     return "```=Help: Shows all of HONGUELO's commands. Looking at that right now!\n" +
         "=Roll: Rolls for your ELO if you haven't done so today\n" +
@@ -77,6 +87,7 @@ function helpMessage() {
         "=Leagues: Displays the leagues, and how to get them\n" +
         "=Average: Shows your roll averages for the season so far\n" +
         "=Top: Displays your highest roll for the season so far\n" +
+        "=Bot: Displays your lowest roll for the season so far\n" +
         "=Countdown: Displays time until your next roll\n" +
         "=Best: Shows the best roll for the season and the best average for the season\n" +
         "=Rank: Shows your rank compared to everyone else's\n" +
@@ -162,7 +173,7 @@ async function handleMessage(evt) {
     evt.react(evt.guild.emojis.cache.find(emoji => emoji.name === "pog"))
     .then(console.log)
     .catch(console.error);*/
-    if(evt.author.username != "June") return;
+    if (evt.author.username != "June") return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');
@@ -218,6 +229,9 @@ async function handleMessage(evt) {
             case 'counter':
             case 'count':
                 evt.reply(await counter(evt.author.id));
+                break;
+            case 'bot':
+                evt.reply(await findBot(evt.author.id));
                 break;
         }
     }

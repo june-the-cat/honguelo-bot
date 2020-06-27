@@ -3,4 +3,6 @@
 - Added "you can roll now" to countdown
 - Added =counter
 - Moved roll handling to a separate file
-- Moved discord handling to a separate file 
+- Moved discord handling to a separate file
+- Added shortcut to some commands
+- Added =bot
