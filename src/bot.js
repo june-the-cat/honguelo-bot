@@ -50,7 +50,7 @@ var midnightPost = schedule.scheduleJob('0 0 0 * * *', function () {
         if (res === null || res.size === null) return;
 
         var msg = "```It is currently midnight.\n" +
-            "The best roll so far is " + res.best_roll + " from " + res.username + ".\n";
+            "The best roll so far is " + res[0].best_roll + " from " + res[0].username + ".\n";
 
         rolls.find({}, {
             projection: {
