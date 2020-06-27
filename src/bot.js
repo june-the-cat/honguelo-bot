@@ -179,7 +179,6 @@ async function handleMessage(evt) {
     evt.react(evt.guild.emojis.cache.find(emoji => emoji.name === "pog"))
     .then(console.log)
     .catch(console.error);*/
-    if (evt.author.username != "June") return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');
