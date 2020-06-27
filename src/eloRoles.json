@@ -1,0 +1,21 @@
+[{
+        "name": "F2P",
+        "topBound": 100
+    },
+    {
+        "name": "Normal League",
+        "topBound": 2000
+    },
+    {
+        "name": "Evil League",
+        "topBound": 4000
+    },
+    {
+        "name": "Sadistic League",
+        "topBound": 4901
+    },
+    {
+        "name": "Whales League",
+        "topBound": 5001
+    }
+]
