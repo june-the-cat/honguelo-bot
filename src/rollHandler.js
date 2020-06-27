@@ -17,7 +17,6 @@ function userCanRoll(user) {
 }
 
 async function doRoll(evt) {
-    if (evt.author.username !== "June") return;
 
     let rollres = roll();
     let reply = await updateRoll(rollres, evt.author.id, evt.author.username);
