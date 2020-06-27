@@ -5,19 +5,12 @@ var logger = require('winston');
 var schedule = require('node-schedule');
 var auth = require('./auth.json');
 var User = require("./user.js");
-const MongoClient = require('mongodb').MongoClient;
 const package = require('../package.json');
+const userRepo = require('./userRepo.js')
+
 const roles = ["F2P", "Normal League", "Evil League", "Sadistic League", "Whales League"];
 const roles_levels = [100, 2000, 4000, 4901, 5001];
 
-const uri = auth.mongoConnectionString;
-const mongo = new MongoClient(uri, {
-    useNewUrlParser: true
-});
-var rolls;
-mongo.connect(err => {
-    rolls = mongo.db("user_data").collection("rolls");
-});
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -36,133 +29,70 @@ client.on('ready', () => {
 
 client.on('message', handleMessage);
 
-var midnightPost = schedule.scheduleJob('0 0 0 * * *', function () {
-    rolls.find({}, {
-        projection: {
-            _id: 0,
-            username: 1,
-            best_roll: 1
-        }
-    }).sort({
-        best_roll: -1
-    }).toArray((err, res) => {
-        if (err) throw err;
-        if (res === null || res.size === null) return;
+var midnightPost = schedule.scheduleJob('0 0 0 * * *', async function () {
+    let rollsByBest = await userRepo.findAllOrderByBestRoll();
+    if (rollsByBest === null) return;
 
-        var msg = "```It is currently midnight.\n" +
-            "The best roll so far is " + res[0].best_roll + " from " + res[0].username + ".\n";
+    var msg = "```It is currently midnight.\n" +
+        "The best roll so far is " + rollsByBest[0].best_roll + " from " + rollsByBest[0].username + ".\n";
 
-        rolls.find({}, {
-            projection: {
-                _id: 0,
-                username: 1,
-                average: 1
-            }
-        }).sort({
-            average: -1
-        }).toArray((err, res) => {
-            if (err) throw err;
+    let rollsByAvg = await userRepo.findAllOrderByAvg();
+    if (rollsByAvg === null) return;
 
-            var tot = 10;
-            if (res.length < tot)
-                tot = res.length;
-            msg += "The top " + tot + " averages are: ";
+    var tot = 10;
+    if (rollsByAvg.length < tot)
+        tot = rollsByAvg.length;
+    msg += "The top " + tot + " averages are: ";
 
-            for (var i = 0; i < tot; i++) {
-                msg += "\n" + (i + 1) + " - " + res[i].username + ": " + res[i].average + "";
-            }
+    for (var i = 0; i < tot; i++) {
+        msg += "\n" + (i + 1) + " - " + rollsByAvg[i].username + ": " + rollsByAvg[i].average + "";
+    }
 
-            msg += "\n\nYou can now roll again.```";
-
-            client.channels.cache.get('723818579845185536').send(msg);
-        });
-    });
+    msg += "\n\nYou can now roll again.```";
+    client.channels.cache.get('723818579845185536').send(msg);
 });
 
-function rollElo(user, evt) {
-    console.log("Rolling for " + user.username);
-    rolls.findOne({
-        "userid": user.id
-    }, (err, result) => {
-        if (err) throw err;
+async function rollElo(u, evt) {
+    console.log("Rolling for " + u.username);
 
-        var userRes;
-        if (!result) {
-            userRes = new User(user.id, user.username);
-        } else {
-            userRes = result;
+    var user = await userRepo.findUserById(u.id);
+    if (!user) {
+        user = new User(u.id, u.username);
+    }
+    var reply;
+
+    if (userCanRoll(user)) {
+        var getout = client.emojis.cache.find(emoji => emoji.name === "getout");
+        reply = `you already had your roll today. ${getout}`;
+    } else {
+        var rollres = roll();
+        reply = rollres.toString();
+        user.rolls.push(rollres);
+        user.best_roll = user.best_roll > rollres ? user.best_roll : rollres;
+        user.average = average(user.rolls);
+
+        userRepo.upsertOne(user);
+
+        //Deal with roles
+        for (var i = 0; i < roles.length; i++) {
+            var role = roles[i];
+            var ro = evt.guild.roles.cache.find(r => r.name === role);
+            if (evt.member.roles.cache.find(r => r.name === role));
+            evt.member.roles.remove(ro.id);
+        };
+
+        var roleName = null;
+        var i = 0;
+        while (roleName === null) {
+            if (rollres < roles_levels[i])
+                roleName = roles[i];
+            i++;
         }
+        var role = evt.guild.roles.cache.find(role => role.name === roleName);
+        evt.member.roles.add(role);
+    }
 
-        var reply;
-
-        var midnight = new Date();
-        midnight.setHours(0, 0, 0, 0);
-        if (userRes.lastRoll >= midnight) {
-            //if (userRes.lastRoll >= (new Date()).setSeconds(0, 0)) {
-            var getout = client.emojis.cache.find(emoji => emoji.name === "getout");
-            reply = `you already had your roll today. ${getout}`;
-        } else {
-            var rollres = roll();
-
-            var reply = rollres.toString();
-            if (userRes._id === null) {
-                userrolls = [rollres];
-                var insert = {
-                    rolls: userrolls,
-                    average: average(userrolls),
-                    userid: user.id,
-                    best_roll: rollres,
-                    username: user.username,
-                    lastRoll: new Date()
-                };
-                rolls.insertOne(insert, (err, res) => {
-                    if (err) throw err;
-                    console.log("saved one value")
-                });
-            } else {
-                userRes.rolls.push(rollres);
-                var query = {
-                    _id: userRes._id
-                };
-                var bestroll = rollres > userRes.best_roll ? rollres : userRes.best_roll;
-                var values = {
-                    $push: {
-                        rolls: rollres
-                    },
-                    $set: {
-                        lastRoll: new Date(),
-                        best_roll: bestroll,
-                        average: average(userRes.rolls)
-                    }
-                };
-
-                rolls.updateOne(query, values, (err, res) => {
-                    if (err) throw err;
-                    console.log("saved one value")
-                });
-            }
-
-            //Deal with roles
-            for (var i = 0; i < roles.length; i++) {
-                var role = roles[i];
-                var ro = evt.guild.roles.cache.find(r => r.name === role);
-                if (evt.member.roles.cache.find(r => r.name === role));
-                evt.member.roles.remove(ro.id);
-            };
-
-            var roleName = null;
-            var i = 0;
-            while (roleName === null) {
-                if (rollres < roles_levels[i])
-                    roleName = roles[i];
-                i++;
-            }
-            var role = evt.guild.roles.cache.find(role => role.name === roleName);
-            evt.member.roles.add(role);
-        }
-
-        evt.reply(reply);
-    });
+    evt.reply(reply);
 }
 
 function roll() {
@@ -171,26 +101,18 @@ function roll() {
     return res;
 }
 
-function calcaverage(user, evt) {
-    rolls.findOne({
-        "userid": user.id
-    }, (err, result) => {
-        if (err) throw err;
+async function calcaverage(user, evt) {
+    var userRes = await userRepo.findUserById(user.id);
+    if (!userRes) {
+        userRes = new User(user.id, user.username);
+    }
 
-        var userRes;
-        if (!result) {
-            userRes = new User(user.id, user.username);
-        } else {
-            userRes = result;
-        }
-
-        if (userRes.rolls.length === 0) {
-            evt.reply("you have not rolled yet");
-        } else {
-            var avg = userRes.average;
-            evt.reply("your average is " + avg.toString());
-        }
-    });
+    if (userRes.rolls.length === 0) {
+        evt.reply("you have not rolled yet");
+    } else {
+        var avg = userRes.average;
+        evt.reply("your average is " + avg.toString());
+    }
 }
 
 function average(data) {
@@ -203,41 +125,30 @@ function average(data) {
     }
 
     //Round to 2 decimal places
-    avg = Math.round(avg*100)/100
+    avg = Math.round(avg * 100) / 100
 
     return avg;
 }
 
-function lastRoll(user, evt) {
-    rolls.findOne({
-        "userid": user.id
-    }, (err, result) => {
-        if (err) throw err;
-
-        if (!result) {
-            evt.reply("you haven't rolled yet. Use the command =roll to start playing.");
-            return;
-        } else {
-            evt.reply("your last roll was " + result.rolls[result.rolls.length - 1].toString());
-        }
-
-    });
+async function lastRoll(user, evt) {
+    var result = await userRepo.findUserById(user.id);
+    if (!result) {
+        evt.reply("you haven't rolled yet. Use the command =roll to start playing.");
+        return;
+    } else {
+        evt.reply("your last roll was " + result.rolls[result.rolls.length - 1].toString());
+    }
 }
 
-function findtop(user, evt) {
-    rolls.findOne({
-        "userid": user.id
-    }, (err, result) => {
-        if (err) throw err;
+async function findtop(user, evt) {
+    var result = await userRepo.findUserById(user.id);
 
-        if (!result) {
-            evt.reply("you haven't rolled yet. Use the command =roll to start playing.");
-            return;
-        } else {
-            evt.reply("your top roll was " + Math.max(...result.rolls).toString());
-        }
-
-    });
+    if (!result) {
+        evt.reply("you haven't rolled yet. Use the command =roll to start playing.");
+        return;
+    } else {
+        evt.reply("your top roll was " + Math.max(...result.rolls).toString());
+    }
 }
 
 function helpMessage() {
@@ -248,7 +159,7 @@ function helpMessage() {
         "=Leagues: Displays the leagues, and how to get them\n" +
         "=Average: Shows your roll averages for the season so far\n" +
         "=Top: Displays your highest roll for the season so far\n" +
-        "=Countdown: Displays time until next roll reset\n" +
+        "=Countdown: Displays time until your next roll\n" +
         "=Best: Shows the best roll for the season and the best average for the season\n" +
         "=Rank: Shows your rank compared to everyone else's```";
 }
@@ -263,79 +174,64 @@ function leaguesMessage() {
         "4901-5000: Whales";
 }
 
-function countdown() {
-    var next = new Date();
-    next.setHours(0, 0, 0, 0);
-    next.setDate(next.getDate() + 1);
-    var diffInSec = Math.floor((next - new Date()) / (1000));
-    var diffInMinutes = Math.floor(diffInSec / 60);
-    var diffInHours = Math.floor(diffInMinutes / 60);
-    return "next roll available in " + diffInHours + " hours, " + (diffInMinutes - diffInHours * 60) + " minutes, " + (diffInSec - diffInMinutes * 60) + " seconds."
+async function countdown(user, evt) {
+    var result = await userRepo.findUserById(user.id);
+    if (!userCanRoll(result)) {
+        var next = new Date();
+        next.setHours(0, 0, 0, 0);
+        next.setDate(next.getDate() + 1);
+        var diffInSec = Math.floor((next - new Date()) / (1000));
+        var diffInMinutes = Math.floor(diffInSec / 60);
+        var diffInHours = Math.floor(diffInMinutes / 60);
+        return evt.reply("next roll available in " + diffInHours + " hours, " + (diffInMinutes - diffInHours * 60) + " minutes, " + (diffInSec - diffInMinutes * 60) + " seconds.")
+    } else {
+        return evt.reply("you can roll now.")
+    }
 }
 
-function best(evt) {
-    rolls.find({}, {
-        projection: {
-            _id: 0,
-            username: 1,
-            best_roll: 1
-        }
-    }).sort({
-        best_roll: -1
-    }).toArray((err, res1) => {
-        if (err) throw err;
-        if (res1 === null || res1.size === 0) {evt.reply("there have been no rolls this season so far"); return;}
-        
-        console.log(res1)
-        var msg = "the best roll for this season is `" + res1[0].best_roll + "` from `" + res1[0].username + "`.\n"
+function userCanRoll(user) {
+    if(user === null) return false; 
 
-        rolls.find({}, {
-            projection: {
-                _id: 0,
-                username: 1,
-                average: 1
-            }
-        }).sort({
-            average: -1
-        }).toArray((err, res2) => {
-            if (err) throw err;
-            
-            msg += "The best average for this season is `" + res2[0].average.toFixed(2) + "` from `" + res2[0].username + "`.";
-
-            evt.reply(msg);
-        });
-    });
+    var midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    return (user.lastRoll < midnight);
 }
 
-function rank(evt) {
-    rolls.find({}, {
-        projection: {
-            _id: 0,
-            username: 1,
-            average: 1,
-            userid: 1
-        }
-    }).sort({
-        average: -1
-    }).toArray((err, res) => {
-        if (err) throw err;
+async function best(evt) {
+    var bestRolls = await userRepo.findAllOrderByBestRoll();
 
-        var position = 0;
-        while (position < res.length && res[position].userid != evt.author.id) {
-            position++;
-        }
+    if (bestRolls === null || bestRolls.size === 0) {
+        evt.reply("there have been no rolls this season so far");
+        return;
+    }
 
-        if (position === res.length)
-            evt.reply("You have not rolled yet.");
-        else {
-            position++;
-            var suffix = "th";
-            if (position % 10 === 1 && position % 100 !== 11) suffix = 'st';
-            if (position % 10 === 2 && position % 100 !== 12) suffix = 'nd';
-            if (position % 10 === 3 && position % 100 !== 13) suffix = 'rd'; //tnx Youri because i'm lazy
-            evt.reply("at the moment, you are ranked " + position + suffix + ".");
-        }
-    });
+    var msg = "the best roll for this season is `" + bestRolls[0].best_roll + "` from `" + bestRolls[0].username + "`.\n"
+
+    var bestAvg = await userRepo.findAllOrderByAvg();
+
+    msg += "The best average for this season is `" + bestAvg[0].average.toFixed(2) + "` from `" + bestAvg[0].username + "`.";
+
+    evt.reply(msg);
+}
+
+async function rank(evt) {
+    var bestAvg = await userRepo.findAllOrderByAvg();
+
+    var position = 0;
+    while (position < bestAvg.length && bestAvg[position].userid != evt.author.id) {
+        position++;
+    }
+
+    if (position === bestAvg.length)
+        evt.reply("You have not rolled yet.");
+    else {
+        position++;
+        var suffix = "th";
+        if (position % 10 === 1 && position % 100 !== 11) suffix = 'st';
+        if (position % 10 === 2 && position % 100 !== 12) suffix = 'nd';
+        if (position % 10 === 3 && position % 100 !== 13) suffix = 'rd'; //tnx Youri because i'm lazy
+        evt.reply("at the moment, you are ranked " + position + suffix + ".");
+    }
 }
 
 function handleMessage(evt) {
@@ -383,7 +279,7 @@ function handleMessage(evt) {
                 break;
                 // =countdown
             case 'countdown':
-                evt.reply(countdown());
+                countdown(evt.author, evt);
                 break;
                 // =best
             case 'best':
