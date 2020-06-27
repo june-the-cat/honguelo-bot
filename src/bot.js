@@ -61,7 +61,7 @@ async function rollElo(u, evt) {
     }
     var reply;
 
-    if (userCanRoll(user)) {
+    if (!userCanRoll(user)) {
         var getout = client.emojis.cache.find(emoji => emoji.name === "getout");
         reply = `you already had your roll today. ${getout}`;
     } else {
@@ -161,7 +161,8 @@ function helpMessage() {
         "=Top: Displays your highest roll for the season so far\n" +
         "=Countdown: Displays time until your next roll\n" +
         "=Best: Shows the best roll for the season and the best average for the season\n" +
-        "=Rank: Shows your rank compared to everyone else's```";
+        "=Rank: Shows your rank compared to everyone else's" +
+        "=Counter: Shows the number of rolls you made```";
 }
 
 function leaguesMessage() {
@@ -234,6 +235,18 @@ async function rank(evt) {
     }
 }
 
+async function counter(u, evt) {
+    var user = await userRepo.findUserById(u.id);
+    var msg;
+    if(user === null || user.rolls.lengt === 0){
+        msg = "you have not rolled yet";
+    } else {
+        msg = "you rolled " + user.rolls.length + " times."
+    }
+
+    evt.reply(msg);
+}
+
 function handleMessage(evt) {
     message = evt.content;
     /* Break the comment in case of DUNAK
@@ -287,6 +300,9 @@ function handleMessage(evt) {
                 break;
             case 'rank':
                 rank(evt);
+                break;
+            case 'counter':
+                counter(evt.author, evt);
                 break;
         }
     }

@@ -1,0 +1,4 @@
+1.1.0
+- Moved the mongo connection to a separate file
+- Added "you can roll now" to countdown
+- Added =counter
