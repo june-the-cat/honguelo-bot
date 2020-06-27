@@ -1,4 +1,9 @@
-[{
+[
+    {
+        "name" : "Unranked",
+        "topBound": -1
+    },
+    {
         "name": "F2P",
         "topBound": 100
     },

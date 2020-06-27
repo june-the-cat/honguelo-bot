@@ -29,14 +29,18 @@ var midnightPost = schedule.scheduleJob('0 0 0 * * *', async function () {
     var tot = 100;
     if (rollsByAvg.length < tot)
         tot = rollsByAvg.length;
-    msg += "The top " + tot + " averages are: ";
+    msg += "The top " + tot + " scores are: ";
 
     for (var i = 0; i < tot; i++) {
-        msg += "\n" + (i + 1) + " - " + rollsByAvg[i].username + ": " + rollsByAvg[i].average + "";
+        let avg = rollsByAvg[i].average;
+        //Round to 2 decimal places
+        avg = Math.round(avg * 100) / 100
+        msg += "\n" + (i + 1) + " - " + rollsByAvg[i].username + ": " + avg + "";
     }
 
     msg += "\n\nYou can now roll again.```";
-    client.channels.cache.get('723818579845185536').send(msg);
+    msg += "\n<@&" + await discordHandler.getRole(null, "Addicted").id + "> Ping.";
+    discordHandler.sendMessageToChannel('723818579845185536', msg); //leaderboard id
 });
 
 async function getaverage(userid) {
@@ -46,7 +50,9 @@ async function getaverage(userid) {
         return "you have not rolled yet.";
     } else {
         var avg = userRes.average;
-        return "your average is " + avg.toString();
+        //Round to 2 decimal places
+        avg = Math.round(avg * 100) / 100
+        return "your score is " + avg.toString();
     }
 }
 
@@ -85,11 +91,11 @@ function helpMessage() {
         "=Practice: Do a practice roll\n" +
         "=Last: Shows your last roll\n" +
         "=Leagues: Displays the leagues, and how to get them\n" +
-        "=Average: Shows your roll averages for the season so far\n" +
+        "=Score: Shows your score for the season so far\n" +
         "=Top: Displays your highest roll for the season so far\n" +
         "=Bot: Displays your lowest roll for the season so far\n" +
         "=Countdown: Displays time until your next roll\n" +
-        "=Best: Shows the best roll for the season and the best average for the season\n" +
+        "=Best: Shows the best roll for the season and the best score for the season\n" +
         "=Rank: Shows your rank compared to everyone else's\n" +
         "=Counter: Shows the number of rolls you made```";
 }
@@ -130,7 +136,7 @@ async function best() {
 
     var bestAvg = await userRepo.findAllOrderByAvg();
 
-    msg += "The best average for this season is `" + bestAvg[0].average.toFixed(2) + "` from `" + bestAvg[0].username + "`.";
+    msg += "The best score for this season is `" + bestAvg[0].average.toFixed(2) + "` from `" + bestAvg[0].username + "`.";
 
     return msg;
 }
@@ -201,9 +207,8 @@ async function handleMessage(evt) {
             case 'league':
                 evt.reply(leaguesMessage());
                 break;
-                // =average
-            case 'average':
-            case 'avg':
+                // =score
+            case 'score':
                 evt.reply(await getaverage(evt.author.id));
                 break;
                 // =last

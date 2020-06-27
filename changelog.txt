@@ -6,3 +6,6 @@
 - Moved discord handling to a separate file
 - Added shortcut to some commands
 - Added =bot
+- Added unranked handling
+- Added role Addiced handling + ping at midnight
+- Changed the score system

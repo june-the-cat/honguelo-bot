@@ -56,11 +56,11 @@ mongo.connect(err => {
 
 function average(data) {
     var avg = 0;
+    var seasonLengt = 30;
 
     if (data.length) {
         for (var i = 0; i < data.length; i++)
-            avg += data[i];
-        avg /= data.length;
+            avg += data[i]/seasonLengt;
     }
 
     return avg;

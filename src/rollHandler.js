@@ -26,7 +26,6 @@ async function doRoll(evt) {
         var getout = discordHandler.getEmoji("getout");
         reply = `you already had your roll today. ${getout}`;
     } else {
-
         var roleName = null;
         var i = 0;
         //find which role to give based on the roll
@@ -72,15 +71,12 @@ function roll() {
 
 function score(data) {
     var avg = 0;
+    var seasonLengt = 30;
 
     if (data.length) {
         for (var i = 0; i < data.length; i++)
-            avg += data[i];
-        avg /= data.length;
+            avg += data[i]/seasonLengt;
     }
-
-    //Round to 2 decimal places
-    avg = Math.round(avg * 100) / 100
 
     return avg;
 }
