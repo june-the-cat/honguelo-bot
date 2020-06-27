@@ -81,7 +81,7 @@ async function findBot(userid) {
     if (!result) {
         return "you haven't rolled yet. Use the command =roll to start playing.";
     } else {
-        return "your top roll was " + Math.min(...result.rolls).toString();
+        return "your bot roll was " + Math.min(...result.rolls).toString();
     }
 }
 
