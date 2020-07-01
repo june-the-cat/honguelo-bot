@@ -57,6 +57,7 @@ module.exports.upsertOne = async function upsertOne(user) {
     var values = {
         $set: {
             lastRoll: new Date(),
+            username: user.username,
             rolls: user.rolls,
             average: user.average,
             best_roll: user.best_roll,
