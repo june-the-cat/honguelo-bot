@@ -93,7 +93,7 @@ function helpMessage() {
         "=Leagues: Displays the leagues, and how to get them\n" +
         "=Score: Shows your score for the season so far\n" +
         "=Top: Displays your highest roll for the season so far\n" +
-        "=Bot: Displays your lowest roll for the season so far\n" +
+        "=Bottom: Displays your lowest roll for the season so far\n" +
         "=Countdown: Displays time until your next roll\n" +
         "=Best: Shows the best roll for the season and the best score for the season\n" +
         "=Rank: Shows your rank compared to everyone else's\n" +
@@ -235,6 +235,7 @@ async function handleMessage(evt) {
                 evt.reply(await counter(evt.author.id));
                 break;
             case 'bot':
+            case 'bottom':
                 evt.reply(await findBot(evt.author.id));
                 break;
         }
