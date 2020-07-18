@@ -6,6 +6,14 @@ const package = require('../package.json');
 const userRepo = require('./userRepo.js')
 const discordHandler = require('./discordHandler');
 const rollHandler = require('./rollHandler.js');
+const seasonInfo = require('./resources/season.json');
+
+var currentSeason;
+for (var i = 0; i < seasonInfo.length; i++) {
+    if (new Date(seasonInfo[i].startDate).getTime() < (new Date()).getTime() &&
+        new Date(seasonInfo[i].endDate).getTime() > (new Date()).getTime())
+        currentSeason = seasonInfo[i];
+}
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -96,8 +104,11 @@ function helpMessage() {
         "=Bottom: Displays your lowest roll for the season so far\n" +
         "=Countdown: Displays time until your next roll\n" +
         "=Best: Shows the best roll for the season and the best score for the season\n" +
+        "=Leaderboard <Roll | Score> [reverse]: Shows the top 5 rolls this season and the top 5 scores this season\n" +
         "=Rank: Shows your rank compared to everyone else's\n" +
-        "=Counter: Shows the number of rolls you made```";
+        "=Counter: Shows the number of rolls you made\n" +
+        "=Season: Shows info about the current season\n" +
+        "=List: Shows all your rolls this season``";
 }
 
 function leaguesMessage() {
@@ -128,13 +139,17 @@ async function countdown(userid) {
 async function best() {
     var bestRolls = await userRepo.findAllOrderByBestRoll();
 
-    if (bestRolls === null || bestRolls.size === 0) {
+    if (bestRolls === null || bestRolls.length === 0) {
         return "there have been no rolls this season so far";
     }
 
     var msg = "the best roll for this season is `" + bestRolls[0].best_roll + "` from `" + bestRolls[0].username + "`.\n"
 
     var bestAvg = await userRepo.findAllOrderByAvg();
+
+    if (bestAvg === null || bestAvg.length === 0) {
+        return "there have been no rolls this season so far";
+    }
 
     msg += "The best score for this season is `" + bestAvg[0].average.toFixed(2) + "` from `" + bestAvg[0].username + "`.";
 
@@ -164,10 +179,77 @@ async function rank(userid) {
 async function counter(userid) {
     var user = await userRepo.findUserById(userid);
     var msg;
-    if (user === null || user.rolls.lengt === 0) {
+    if (user === null || user.rolls.length === 0) {
         msg = "you have not rolled yet";
     } else {
         msg = "you rolled " + user.rolls.length + " times."
+    }
+
+    return msg;
+}
+
+function seasonMessage() {
+
+    var days = Math.floor((new Date() - new Date(currentSeason.startDate))/1000/60/60/24);
+
+    var msg = "Current season started on " + currentSeason.startDate + ", " + days + " days ago.\n" +
+        "It will end on " + currentSeason.endDate + ".\n" +
+        "The rules are as follows: \n" + currentSeason.description;
+
+    return msg;
+}
+
+async function listRolls(userid){
+    var user = await userRepo.findUserById(userid);
+    var msg;
+
+    if (user === null || user.rolls.length === 0) {
+        msg = "you have not rolled yet";
+    } else {
+        var rolls = user.rolls.sort();
+        msg = "your rolls are " + rolls.join(", ") + "."
+    }
+
+    return msg;
+}
+
+async function leaderboard(args){
+
+    var msg;
+    var reverse = (args.length === 2 && args[1] === "reverse");
+
+    var rolls;
+    if(args[0] === "roll"){
+        if(reverse) msg = "Bottom 5 by roll:"
+        else msg = "Top 5 by roll:"; 
+
+        rolls = await userRepo.findAllOrderByBestRoll(reverse);
+        if (rolls === null) "There was an error trying to fetch the rolls";
+
+    } else if(args[0] === "score"){
+        if(reverse) msg = "Bottom 5 by score:"
+        else msg = "Top 5 by score:"; 
+
+        rolls = await userRepo.findAllOrderByAvg(reverse);
+        if (rolls === null) "There was an error trying to fetch the rolls";
+    } else {
+        return "arguments not recognized. Say leaderboard score or leaderboard roll";
+    }
+
+    tot = 5;
+    if (rolls.length < tot)
+        tot = rolls.length;
+    for (var i = 0; i < tot; i++) {
+        let num;
+
+        if(args[0] === "roll") 
+            if(reverse) num = rolls[i].worse_roll;
+            else num  = rolls[i].best_roll;
+        else if(args[0] === "score") num = rolls[i].average;
+
+        //Round to 2 decimal places
+        num = Math.round(num * 100) / 100
+        msg += "\n" + (i + 1) + " - " + rolls[i].username + ": " + num + "";
     }
 
     return msg;
@@ -179,6 +261,8 @@ async function handleMessage(evt) {
     evt.react(evt.guild.emojis.cache.find(emoji => emoji.name === "pog"))
     .then(console.log)
     .catch(console.error);*/
+
+    if(evt.author.id != '279656190655463425') return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');
@@ -237,6 +321,15 @@ async function handleMessage(evt) {
             case 'bot':
             case 'bottom':
                 evt.reply(await findBot(evt.author.id));
+                break;
+            case 'season':
+                evt.reply(seasonMessage());
+                break;
+            case 'list':
+                evt.reply(await listRolls(evt.author.id));
+                break;
+            case 'leaderboard':
+                evt.reply(await leaderboard(args));
                 break;
         }
     }

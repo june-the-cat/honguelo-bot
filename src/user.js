@@ -5,6 +5,7 @@ module.exports = class User {
         this.average = 0;
         this.userid = id;
         this.best_roll = 0;
+        this.worse_roll = 0;
         this.username = name;
         this.lastRoll = null;
     }

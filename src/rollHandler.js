@@ -1,4 +1,4 @@
-const eloRoles = require('./eloRoles.json');
+const eloRoles = require('./resources/eloRoles.json');
 const userRepo = require('./userRepo.js');
 const discordHandler = require('./discordHandler');
 var User = require("./user.js");
@@ -54,6 +54,7 @@ async function updateRoll(rollres, userId, username) {
     } else {
         user.rolls.push(rollres);
         user.best_roll = user.best_roll > rollres ? user.best_roll : rollres;
+        user.worse_roll = user.worse_roll < rollres ? user.worse_roll : rollres;
         user.average = score(user.rolls);
 
         userRepo.upsertOne(user);

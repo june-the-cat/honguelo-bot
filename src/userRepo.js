@@ -1,4 +1,4 @@
-var auth = require('./auth.json');
+var auth = require('./resources/auth.json');
 const MongoClient = require('mongodb').MongoClient;
 
 const uri = auth.mongoConnectionString;
@@ -11,26 +11,43 @@ mongo.connect(err => {
     rolls = mongo.db("user_data").collection("rolls");
 });
 
-module.exports.findAllOrderByBestRoll = async function findAllOrderByBestRoll() {
+module.exports.findAllOrderByBestRoll = async function findAllOrderByBestRoll(reverse) {
     if (rolls === null) return null;
+    if (reverse === null) reverse = false;
 
-    let cursor = await rolls.find({}, {
-        projection: {
-            _id: 0,
-            username: 1,
-            best_roll: 1,
-            userid: 1
-        },
-        sort: {
-            best_roll: -1
-        }
-    });
+    var cursor;
+    if (reverse) {
+        cursor = await rolls.find({}, {
+            projection: {
+                _id: 0,
+                username: 1,
+                worse_roll: 1,
+                userid: 1
+            },
+            sort: {
+                worse_roll: reverse ? 1 : -1
+            }
+        });
+    } else {
+        cursor = await rolls.find({}, {
+            projection: {
+                _id: 0,
+                username: 1,
+                best_roll: 1,
+                userid: 1
+            },
+            sort: {
+                best_roll: reverse ? 1 : -1
+            }
+        });
+    }
 
     return cursor.toArray();
 }
 
-module.exports.findAllOrderByAvg = async function findAllOrderByAvg() {
+module.exports.findAllOrderByAvg = async function findAllOrderByAvg(reverse) {
     if (rolls === null) return null;
+    if (reverse === null) reverse = false;
 
     return rolls.find({}, {
         projection: {
@@ -40,7 +57,7 @@ module.exports.findAllOrderByAvg = async function findAllOrderByAvg() {
             userid: 1
         }
     }).sort({
-        average: -1
+        average: reverse ? 1 : -1
     }).toArray();
 }
 
@@ -61,6 +78,7 @@ module.exports.upsertOne = async function upsertOne(user) {
             rolls: user.rolls,
             average: user.average,
             best_roll: user.best_roll,
+            worse_roll: user.worse_roll
         }
     };
 

@@ -1,6 +1,6 @@
 var Discord = require('discord.js');
-var auth = require('./auth.json');
-const eloRoles = require('./eloRoles.json');
+var auth = require('./resources/auth.json');
+const eloRoles = require('./resources/eloRoles.json');
 
 var honguGuild = null;
 const client = new Discord.Client();

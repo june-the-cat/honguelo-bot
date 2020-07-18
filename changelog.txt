@@ -1,7 +1,9 @@
 1.2.0
 - fix removing reaction from bot message removes addicted role
 - changed bottom command to bot
-
+- added season command
+- added command list to list all rolls for a user
+- added command leaderboard to show top/bottom rolls/scores
 
 1.1.2
 - fix username not added for new users
