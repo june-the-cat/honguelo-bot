@@ -262,7 +262,7 @@ async function handleMessage(evt) {
     .then(console.log)
     .catch(console.error);*/
 
-    if(evt.author.id != '279656190655463425') return;
+    //if(evt.author.id != '279656190655463425') return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');
