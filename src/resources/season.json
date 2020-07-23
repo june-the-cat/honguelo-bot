@@ -1,0 +1,11 @@
+[{
+    "number": 1,
+    "startDate": "06/20/2020",
+    "endDate": "07/24/2020",
+    "description": "1. highest score wins a prize\n2. highest roll wins a prize\n3. highest 5 in score win a drawing prize\n4. lowest 5 in roll win a drawing prize\n5. you cannot win a certain prize twice"
+}, {
+    "number": 2,
+    "startDate": "07/24/2020",
+    "endDate": "08/24/2020",
+    "description": "1. lowest score wins a prize\n2. lowest roll wins a prize\n3. lowest 5 in score win a drawing prize\n4. highest 5 in roll win a drawing prize\n5. you cannot win a certain prize twice"
+}]
