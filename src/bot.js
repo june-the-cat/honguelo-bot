@@ -134,7 +134,7 @@ function helpMessage() {
         "=Rank [Season]: Shows your rank compared to everyone else's\n" +
         "=Counter [Season]: Shows the number of rolls you made\n" +
         "=Season: Shows info about the current season\n" +
-        "=List [Season]: Shows all your rolls in the season``";
+        "=List [Season]: Shows all your rolls in the season```";
 }
 
 function leaguesMessage() {
