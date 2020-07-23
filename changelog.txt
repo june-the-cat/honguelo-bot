@@ -1,3 +1,7 @@
+1.2.1
+- fix season description
+- fix help message
+
 1.2.0
 - fix removing reaction from bot message removes addicted role
 - changed bottom command to bot
