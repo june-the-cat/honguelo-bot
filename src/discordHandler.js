@@ -1,6 +1,6 @@
 var Discord = require('discord.js');
-var auth = require('./resources/auth.json');
-const eloRoles = require('./resources/eloRoles.json');
+var auth = require('./auth.json');
+const eloRoles = require('./eloRoles.json');
 
 var honguGuild = null;
 const client = new Discord.Client();
@@ -36,14 +36,12 @@ client.on('messageReactionAdd', (reaction, user) => {
 });
 
 client.on('messageReactionRemove', (reaction, user) => {
-    if (reaction.message.id === '726379869092577380') {
-        let userid = user.id;
-        let guild = honguGuild;
-        let member = guild.members.cache.find(member => member.id === userid);
-        let rolename = "Addicted";
+    let userid = user.id;
+    let guild = honguGuild;
+    let member = guild.members.cache.find(member => member.id === userid);
+    let rolename = "Addicted";
 
-        removeRole(rolename, guild, member);
-    }
+    removeRole(rolename, guild, member);
 });
 
 module.exports.setHandler = setHandler;
@@ -94,15 +92,4 @@ module.exports.sendMessageToChannel = sendMessageToChannel;
 
 function sendMessageToChannel(channelId, message) {
     client.channels.cache.get(channelId).send(message);
-}
-
-module.exports.clearAllRankedRoles = clearAllRankedRoles;
-
-async function clearAllRankedRoles() {
-    var users = await honguGuild.members.cache.find(member=>member.id==="279656190655463425" );
-
-    users.forEach( u => {
-        clearRoles(honguGuild, u)   
-        giveRole("Unranked", honguGuild, u);
-    });
 }

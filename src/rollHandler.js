@@ -1,82 +1,25 @@
-const eloRoles = require('./resources/eloRoles.json');
+const eloRoles = require('./eloRoles.json');
 const userRepo = require('./userRepo.js');
 const discordHandler = require('./discordHandler');
-const seasonInfo = require('./resources/season.json');
 var User = require("./user.js");
 
-var currentSeason;
-for (var i = 0; i < seasonInfo.length; i++) {
-    if (new Date(seasonInfo[i].startDate).getTime() < (new Date()).getTime() &&
-        new Date(seasonInfo[i].endDate).getTime() > (new Date()).getTime())
-        currentSeason = seasonInfo[i];
-}
 
 module.exports.userCanRoll = userCanRoll;
 module.exports.evtRoll = doRoll;
 module.exports.roll = roll;
-module.exports.userRollComparator = userRollComparator;
-module.exports.userScoreComparator = userScoreComparator;
-
-
-
-function userRollComparator(season) {
-    switch (season) {
-        case 1:
-            return function (a, b) {
-                return b.best_roll - a.best_roll;
-            };
-        case 2:
-            return function (a, b) {
-                return a.best_roll - b.best_roll;
-            };
-    }
-}
-
-function rollComparator(season) {
-    switch (season) {
-        case 1:
-            return function (a, b) {
-                return b - a;
-            };
-        case 2:
-            return function (a, b) {
-                return a - b;
-            };
-    }
-}
-
-function userScoreComparator(season) {
-    switch (season) {
-        case 1:
-        case 2:
-            return function (a, b) {
-                return b.average - a.average;
-            };
-    }
-}
-
-function scoreComparator(season) {
-    switch (season) {
-        case 1:
-        case 2:
-            return function (a, b) {
-                return b - a;
-            };
-    }
-}
 
 function userCanRoll(user) {
-    if (user.lastRoll === null) return true;
+    if(user.lastRoll === null) return true;
 
     var midnight = new Date();
     midnight.setHours(0, 0, 0, 0);
     return (user.lastRoll < midnight);
 }
 
-async function doRoll(evt, season) {
+async function doRoll(evt) {
 
     let rollres = roll();
-    let reply = await updateRoll(rollres, evt.author.id, evt.author.username, season);
+    let reply = await updateRoll(rollres, evt.author.id, evt.author.username);
 
     if (reply === null) {
         var getout = discordHandler.getEmoji("getout");
@@ -98,26 +41,22 @@ async function doRoll(evt, season) {
     evt.reply(reply);
 }
 
-async function updateRoll(rollres, userId, username, season) {
+async function updateRoll(rollres, userId, username) {
     console.log("Rolling for " + username);
 
-    var user = await userRepo.findUserById(userId, season);
+    var user = await userRepo.findUserById(userId);
     if (!user) {
         user = new User(userId, username);
-        user.best_roll = rollres;
-        user.worse_roll = rollres;
     }
 
     if (!userCanRoll(user)) {
         return null;
     } else {
-        compare = rollComparator(season);
         user.rolls.push(rollres);
-        user.best_roll = compare(user.best_roll, rollres) < 0 ? user.best_roll : rollres;
-        user.worse_roll = compare(user.worse_roll, rollres) > 0 ? user.worse_roll : rollres;
-        user.average = score(user.rolls, season);
+        user.best_roll = user.best_roll > rollres ? user.best_roll : rollres;
+        user.average = score(user.rolls);
 
-        userRepo.upsertOne(user, season);
+        userRepo.upsertOne(user);
     }
 
     return rollres.toString();
@@ -129,22 +68,14 @@ function roll() {
     return res;
 }
 
-function score(data, season) {
+function score(data) {
     var avg = 0;
-    var seasonLengt = Math.floor((new Date(currentSeason.endDate) - new Date(currentSeason.startDate)) / 1000 / 60 / 60 / 24);
+    var seasonLengt = 30;
 
-    switch (season) {
-        case 1:
-            if (data.length) {
-                for (var i = 0; i < data.length; i++)
-                    avg += data[i];
-            }
-            return avg / 30;
-        case 2:
-            if (data.length) {
-                for (var i = 0; i < data.length; i++)
-                    avg += 5000 - data[i] ;
-            }
-            return avg / seasonLengt;
+    if (data.length) {
+        for (var i = 0; i < data.length; i++)
+            avg += data[i]/seasonLengt;
     }
+
+    return avg;
 }
