@@ -3,7 +3,7 @@
 var Discord = require('discord.js');
 var logger = require('winston');
 var schedule = require('node-schedule');
-var auth = require('./auth.json');
+var auth = require('./resources/auth.json');
 var User = require("./user.js");
 const MongoClient = require('mongodb').MongoClient;
 const package = require('../package.json');
@@ -25,23 +25,25 @@ mongo.connect(err => {
             rolls: 1,
         }
     }).toArray((err, res) => {
-        if(err) throw err;
+        if (err) throw err;
 
-        for(var i = 0; i < res.length; i++){
+        for (var i = 0; i < res.length; i++) {
             var query = {
                 _id: res[i]._id
             };
 
             var cleanRolls = [];
-            for(var j = 0; j < res[i].rolls.length; j++){
+            for (var j = 0; j < res[i].rolls.length; j++) {
                 cleanRolls.push(parseInt(res[i].rolls[j]));
             }
 
             var bestroll = Math.max(...res[i].rolls);
+            var worseroll = Math.min(...res[i].rolls);
             var values = {
                 $set: {
                     rolls: cleanRolls,
                     best_roll: bestroll,
+                    worse_roll: worseroll,
                     average: average(cleanRolls)
                 }
             };
@@ -60,7 +62,7 @@ function average(data) {
 
     if (data.length) {
         for (var i = 0; i < data.length; i++)
-            avg += data[i]/seasonLengt;
+            avg += data[i] / seasonLengt;
     }
 
     return avg;

@@ -1,3 +1,15 @@
+1.2.0
+- fix removing reaction from bot message removes addicted role
+- changed bottom command to bot
+- added season command
+- added command list to list all rolls for a user
+- added command leaderboard to show top/bottom rolls/scores
+- added season argument to some commands
+- added modular ranking system
+- added date to daily message
+- season changes
+- score/roll sort generified by season
+
 1.1.2
 - fix username not added for new users
 
