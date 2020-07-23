@@ -1,6 +1,6 @@
 {
   "name": "@honguelo/bot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Official HONGUELO™ bot.",
   "main": "scr/bot.js",
   "author": "June",
