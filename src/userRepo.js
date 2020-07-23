@@ -1,4 +1,4 @@
-var auth = require('./resources/auth.json');
+var auth = require('./auth.json');
 const MongoClient = require('mongodb').MongoClient;
 
 const uri = auth.mongoConnectionString;
@@ -8,50 +8,31 @@ const mongo = new MongoClient(uri, {
 });
 var rolls = null;
 mongo.connect(err => {
-    rolls = mongo.db("user_data");
+    rolls = mongo.db("user_data").collection("rolls");
 });
 
-module.exports.findAllOrderByBestRoll = async function findAllOrderByBestRoll(reverse, season) {
-    if (rolls === null || rolls.collection("rolls" + season) === null) return null;
-    if (reverse === null) reverse = false;
+module.exports.findAllOrderByBestRoll = async function findAllOrderByBestRoll() {
+    if (rolls === null) return null;
 
-    var cursor;
-    if (reverse) {
-        cursor = await rolls.collection("rolls" + season).find({}, {
-            projection: {
-                _id: 0,
-                username: 1,
-                worse_roll: 1,
-                best_roll: 1,
-                userid: 1
-            },
-            sort: {
-                worse_roll: reverse ? 1 : -1
-            }
-        });
-    } else {
-        cursor = await rolls.collection("rolls" + season).find({}, {
-            projection: {
-                _id: 0,
-                username: 1,
-                best_roll: 1,
-                worse_roll: 1,
-                userid: 1
-            },
-            sort: {
-                best_roll: reverse ? 1 : -1
-            }
-        });
-    }
+    let cursor = await rolls.find({}, {
+        projection: {
+            _id: 0,
+            username: 1,
+            best_roll: 1,
+            userid: 1
+        },
+        sort: {
+            best_roll: -1
+        }
+    });
 
     return cursor.toArray();
 }
 
-module.exports.findAllOrderByAvg = async function findAllOrderByAvg(reverse, season) {
-    if (rolls === null || rolls.collection("rolls" + season) === null) return null;
-    if (reverse === null) reverse = false;
+module.exports.findAllOrderByAvg = async function findAllOrderByAvg() {
+    if (rolls === null) return null;
 
-    return rolls.collection("rolls" + season).find({}, {
+    return rolls.find({}, {
         projection: {
             _id: 0,
             username: 1,
@@ -59,17 +40,17 @@ module.exports.findAllOrderByAvg = async function findAllOrderByAvg(reverse, sea
             userid: 1
         }
     }).sort({
-        average: reverse ? 1 : -1
+        average: -1
     }).toArray();
 }
 
-module.exports.findUserById = async function findAllById(id, season) {
-    return rolls.collection("rolls" + season).findOne({
+module.exports.findUserById = async function findAllById(id) {
+    return rolls.findOne({
         "userid": id
     });
 }
 
-module.exports.upsertOne = async function upsertOne(user, season) {
+module.exports.upsertOne = async function upsertOne(user) {
     var query = {
         userid: user.userid
     };
@@ -80,11 +61,10 @@ module.exports.upsertOne = async function upsertOne(user, season) {
             rolls: user.rolls,
             average: user.average,
             best_roll: user.best_roll,
-            worse_roll: user.worse_roll
         }
     };
 
-    rolls.collection("rolls" + season).updateOne(query, values, {
+    rolls.updateOne(query, values, {
         upsert: true
     });
 }
