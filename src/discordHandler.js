@@ -95,3 +95,14 @@ module.exports.sendMessageToChannel = sendMessageToChannel;
 function sendMessageToChannel(channelId, message) {
     client.channels.cache.get(channelId).send(message);
 }
+
+module.exports.clearAllRankedRoles = clearAllRankedRoles;
+
+async function clearAllRankedRoles() {
+    var users = await honguGuild.members.cache.find(member=>member.id==="279656190655463425" );
+
+    users.forEach( u => {
+        clearRoles(honguGuild, u)   
+        giveRole("Unranked", honguGuild, u);
+    });
+}

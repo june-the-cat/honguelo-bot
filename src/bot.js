@@ -25,14 +25,18 @@ logger.level = 'debug';
 discordHandler.setHandler(handleMessage);
 
 var midnightPost = schedule.scheduleJob('0 0 0 * * *', async function () {
-    let rollsByBest = await userRepo.findAllOrderByBestRoll();
+    let rollsByBest = await userRepo.findAllOrderByBestRoll(false, currentSeason.number);
     if (rollsByBest === null) return;
 
-    var msg = "```It is currently midnight.\n" +
+    rollsByBest.sort(rollHandler.userRollComparator(currentSeason.number));
+
+    var msg = "```It is currently midnight, " + new Date().getDate() + "/" + new Date().getMonth() + 1 + ".\n" +
         "The best roll so far is " + rollsByBest[0].best_roll + " from " + rollsByBest[0].username + ".\n";
 
-    let rollsByAvg = await userRepo.findAllOrderByAvg();
+    let rollsByAvg = await userRepo.findAllOrderByAvg(false, currentSeason.number);
     if (rollsByAvg === null) return;
+
+    rollsByAvg.sort(rollHandler.userScoreComparator(currentSeason.number));
 
     var tot = 100;
     if (rollsByAvg.length < tot)
@@ -49,10 +53,26 @@ var midnightPost = schedule.scheduleJob('0 0 0 * * *', async function () {
     msg += "\n\nYou can now roll again.```";
     msg += "\n<@&" + await discordHandler.getRole(null, "Addicted").id + "> Ping.";
     discordHandler.sendMessageToChannel('723818579845185536', msg); //leaderboard id
+
+
+    var oldSeason = currentSeason;
+    for (var i = 0; i < seasonInfo.length; i++) {
+        if (new Date(seasonInfo[i].startDate).getTime() < (new Date()).getTime() &&
+            new Date(seasonInfo[i].endDate).getTime() > (new Date()).getTime())
+            currentSeason = seasonInfo[i];
+    }
+
+    if (oldSeason != currentSeason) {
+        discordHandler.clearAllRankedRoles();
+        discordHandler.sendMessageToChannel('723818579845185536', "The season is over.");
+    }
 });
 
-async function getaverage(userid) {
-    var userRes = await userRepo.findUserById(userid);
+async function getaverage(userid, season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var userRes = await userRepo.findUserById(userid, season);
 
     if (!userRes || userRes.rolls.length === 0) {
         return "you have not rolled yet.";
@@ -65,7 +85,7 @@ async function getaverage(userid) {
 }
 
 async function lastRoll(userid) {
-    var result = await userRepo.findUserById(userid);
+    var result = await userRepo.findUserById(userid, currentSeason.number);
     if (!result) {
         return "you haven't rolled yet. Use the command =roll to start playing.";
     } else {
@@ -73,23 +93,29 @@ async function lastRoll(userid) {
     }
 }
 
-async function findtop(userid) {
-    var result = await userRepo.findUserById(userid);
+async function findtop(userid, season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var result = await userRepo.findUserById(userid, season);
 
     if (!result) {
         return "you haven't rolled yet. Use the command =roll to start playing.";
     } else {
-        return "your top roll was " + Math.max(...result.rolls).toString();
+        return "your top roll was " + result.best_roll;
     }
 }
 
-async function findBot(userid) {
-    var result = await userRepo.findUserById(userid);
+async function findBot(userid, season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var result = await userRepo.findUserById(userid, season);
 
     if (!result) {
         return "you haven't rolled yet. Use the command =roll to start playing.";
     } else {
-        return "your bottom roll was " + Math.min(...result.rolls).toString();
+        return "your bottom roll was " + result.worse_roll;
     }
 }
 
@@ -99,16 +125,16 @@ function helpMessage() {
         "=Practice: Do a practice roll\n" +
         "=Last: Shows your last roll\n" +
         "=Leagues: Displays the leagues, and how to get them\n" +
-        "=Score: Shows your score for the season so far\n" +
-        "=Top: Displays your highest roll for the season so far\n" +
-        "=Bottom: Displays your lowest roll for the season so far\n" +
+        "=Score [Season]: Shows your score for the season\n" +
+        "=Top [Season]: Displays your highest roll for the season\n" +
+        "=Bottom [Season]: Displays your lowest roll for the season\n" +
         "=Countdown: Displays time until your next roll\n" +
-        "=Best: Shows the best roll for the season and the best score for the season\n" +
-        "=Leaderboard <Roll | Score> [reverse]: Shows the top 5 rolls this season and the top 5 scores this season\n" +
-        "=Rank: Shows your rank compared to everyone else's\n" +
-        "=Counter: Shows the number of rolls you made\n" +
+        "=Best [Season]: Shows the best roll for the season and the best score for the season\n" +
+        "=Leaderboard <Roll | Score> [reverse]: Shows the top 5 rolls this season and the top 5 scores\n" +
+        "=Rank [Season]: Shows your rank compared to everyone else's\n" +
+        "=Counter [Season]: Shows the number of rolls you made\n" +
         "=Season: Shows info about the current season\n" +
-        "=List: Shows all your rolls this season``";
+        "=List [Season]: Shows all your rolls in the season``";
 }
 
 function leaguesMessage() {
@@ -122,7 +148,7 @@ function leaguesMessage() {
 }
 
 async function countdown(userid) {
-    var result = await userRepo.findUserById(userid);
+    var result = await userRepo.findUserById(userid, currentSeason.number);
     if (result != null && !rollHandler.userCanRoll(result)) {
         var next = new Date();
         next.setHours(0, 0, 0, 0);
@@ -136,8 +162,13 @@ async function countdown(userid) {
     }
 }
 
-async function best() {
-    var bestRolls = await userRepo.findAllOrderByBestRoll();
+async function best(season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var bestRolls = await userRepo.findAllOrderByBestRoll(false, season);
+
+    bestRolls.sort(rollHandler.userRollComparator(season));
 
     if (bestRolls === null || bestRolls.length === 0) {
         return "there have been no rolls this season so far";
@@ -145,7 +176,9 @@ async function best() {
 
     var msg = "the best roll for this season is `" + bestRolls[0].best_roll + "` from `" + bestRolls[0].username + "`.\n"
 
-    var bestAvg = await userRepo.findAllOrderByAvg();
+    var bestAvg = await userRepo.findAllOrderByAvg(false, season);
+
+    bestAvg.sort(rollHandler.userScoreComparator(season));
 
     if (bestAvg === null || bestAvg.length === 0) {
         return "there have been no rolls this season so far";
@@ -156,8 +189,12 @@ async function best() {
     return msg;
 }
 
-async function rank(userid) {
-    var bestAvg = await userRepo.findAllOrderByAvg();
+async function rank(userid, season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var bestAvg = await userRepo.findAllOrderByAvg(false, season);
+    bestAvg.sort(rollHandler.userScoreComparator(season));
 
     var position = 0;
     while (position < bestAvg.length && bestAvg[position].userid != userid) {
@@ -176,8 +213,11 @@ async function rank(userid) {
     }
 }
 
-async function counter(userid) {
-    var user = await userRepo.findUserById(userid);
+async function counter(userid, season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var user = await userRepo.findUserById(userid, season);
     var msg;
     if (user === null || user.rolls.length === 0) {
         msg = "you have not rolled yet";
@@ -190,7 +230,7 @@ async function counter(userid) {
 
 function seasonMessage() {
 
-    var days = Math.floor((new Date() - new Date(currentSeason.startDate))/1000/60/60/24);
+    var days = Math.floor((new Date() - new Date(currentSeason.startDate)) / 1000 / 60 / 60 / 24);
 
     var msg = "Current season started on " + currentSeason.startDate + ", " + days + " days ago.\n" +
         "It will end on " + currentSeason.endDate + ".\n" +
@@ -199,8 +239,11 @@ function seasonMessage() {
     return msg;
 }
 
-async function listRolls(userid){
-    var user = await userRepo.findUserById(userid);
+async function listRolls(userid, season) {
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
+
+    var user = await userRepo.findUserById(userid, season);
     var msg;
 
     if (user === null || user.rolls.length === 0) {
@@ -213,25 +256,34 @@ async function listRolls(userid){
     return msg;
 }
 
-async function leaderboard(args){
+async function leaderboard(args) {
 
     var msg;
-    var reverse = (args.length === 2 && args[1] === "reverse");
+    var reverse = (args[1] === "reverse");
+
+    var season = reverse ? args[2] : args[1];
+
+    if (season === undefined || season === null || season === "") season = currentSeason.number;
+    else if (isNaN(season) || parseInt(season) > currentSeason.number) return "season not valid";
 
     var rolls;
-    if(args[0] === "roll"){
-        if(reverse) msg = "Bottom 5 by roll:"
-        else msg = "Top 5 by roll:"; 
+    if (args[0] === "roll") {
+        if (reverse) msg = "Bottom 5 by roll:"
+        else msg = "Top 5 by roll:";
 
-        rolls = await userRepo.findAllOrderByBestRoll(reverse);
+        rolls = await userRepo.findAllOrderByBestRoll(reverse, season);
         if (rolls === null) "There was an error trying to fetch the rolls";
 
-    } else if(args[0] === "score"){
-        if(reverse) msg = "Bottom 5 by score:"
-        else msg = "Top 5 by score:"; 
+        rolls.sort(rollHandler.userRollComparator(season));
 
-        rolls = await userRepo.findAllOrderByAvg(reverse);
+    } else if (args[0] === "score") {
+        if (reverse) msg = "Bottom 5 by score:"
+        else msg = "Top 5 by score:";
+
+        rolls = await userRepo.findAllOrderByAvg(reverse, season);
         if (rolls === null) "There was an error trying to fetch the rolls";
+
+        rolls.sort(rollHandler.userScoreComparator(season));
     } else {
         return "arguments not recognized. Say leaderboard score or leaderboard roll";
     }
@@ -242,10 +294,10 @@ async function leaderboard(args){
     for (var i = 0; i < tot; i++) {
         let num;
 
-        if(args[0] === "roll") 
-            if(reverse) num = rolls[i].worse_roll;
-            else num  = rolls[i].best_roll;
-        else if(args[0] === "score") num = rolls[i].average;
+        if (args[0] === "roll")
+            if (reverse) num = rolls[i].worse_roll;
+            else num = rolls[i].best_roll;
+        else if (args[0] === "score") num = rolls[i].average;
 
         //Round to 2 decimal places
         num = Math.round(num * 100) / 100
@@ -262,7 +314,7 @@ async function handleMessage(evt) {
     .then(console.log)
     .catch(console.error);*/
 
-    //if(evt.author.id != '279656190655463425') return;
+    if (evt.author.id != '279656190655463425') return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');
@@ -275,7 +327,7 @@ async function handleMessage(evt) {
                 break;
                 // =roll
             case 'roll':
-                rollHandler.evtRoll(evt);
+                rollHandler.evtRoll(evt, currentSeason.number);
                 break;
                 // =practice
             case 'practice':
@@ -292,7 +344,7 @@ async function handleMessage(evt) {
                 break;
                 // =score
             case 'score':
-                evt.reply(await getaverage(evt.author.id));
+                evt.reply(await getaverage(evt.author.id, args[0]));
                 break;
                 // =last
             case 'last':
@@ -300,7 +352,7 @@ async function handleMessage(evt) {
                 break;
                 // =top
             case 'top':
-                evt.reply(await findtop(evt.author.id));
+                evt.reply(await findtop(evt.author.id, args[0]));
                 break;
                 // =countdown
             case 'countdown':
@@ -309,24 +361,24 @@ async function handleMessage(evt) {
                 break;
                 // =best
             case 'best':
-                evt.reply(await best());
+                evt.reply(await best(args[0]));
                 break;
             case 'rank':
-                evt.reply(await rank(evt.author.id));
+                evt.reply(await rank(evt.author.id, args[0]));
                 break;
             case 'counter':
             case 'count':
-                evt.reply(await counter(evt.author.id));
+                evt.reply(await counter(evt.author.id, args[0]));
                 break;
             case 'bot':
             case 'bottom':
-                evt.reply(await findBot(evt.author.id));
+                evt.reply(await findBot(evt.author.id, args[0]));
                 break;
             case 'season':
                 evt.reply(seasonMessage());
                 break;
             case 'list':
-                evt.reply(await listRolls(evt.author.id));
+                evt.reply(await listRolls(evt.author.id, args[0]));
                 break;
             case 'leaderboard':
                 evt.reply(await leaderboard(args));
