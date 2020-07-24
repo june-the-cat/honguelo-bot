@@ -383,6 +383,9 @@ async function handleMessage(evt) {
             case 'leaderboard':
                 evt.reply(await leaderboard(args));
                 break;
+            case 'juneplsaddthesecommands':
+                evt.reply("no.");
+                break;
         }
     }
 }
