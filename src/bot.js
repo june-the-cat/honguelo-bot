@@ -7,6 +7,7 @@ const userRepo = require('./userRepo.js')
 const discordHandler = require('./discordHandler');
 const rollHandler = require('./rollHandler.js');
 const seasonInfo = require('./resources/season.json');
+const auth = require('./resources/auth.json')
 
 var currentSeason;
 for (var i = 0; i < seasonInfo.length; i++) {
@@ -316,7 +317,7 @@ async function handleMessage(evt) {
     .then(console.log)
     .catch(console.error);*/
 
-    if (evt.author.id != '279656190655463425') return;
+    if (auth.mode === "dev" && evt.author.id != '279656190655463425') return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');

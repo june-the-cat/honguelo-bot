@@ -3,6 +3,7 @@
 - fix help message
 - fix daily message
 - fix reverse leaderboard
+- added dev parameter in auth.js
 
 1.2.0
 - fix removing reaction from bot message removes addicted role
