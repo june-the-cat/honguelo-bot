@@ -30,7 +30,7 @@ var midnightPost = schedule.scheduleJob('0 0 0 * * *', async function () {
 
     rollsByBest.sort(rollHandler.userRollComparator(currentSeason.number));
 
-    var msg = "```It is currently midnight, " + new Date().getDate() + "/" + new Date().getMonth() + 1 + ".\n" +
+    var msg = "```It is currently midnight, " + new Date().getDate() + "/" + (new Date().getMonth() + 1) + ".\n" +
         "The best roll so far is " + rollsByBest[0].best_roll + " from " + rollsByBest[0].username + ".\n";
 
     let rollsByAvg = await userRepo.findAllOrderByAvg(false, currentSeason.number);
@@ -275,6 +275,7 @@ async function leaderboard(args) {
         if (rolls === null) "There was an error trying to fetch the rolls";
 
         rolls.sort(rollHandler.userRollComparator(season));
+        if(reverse) rolls.reverse();
 
     } else if (args[0] === "score") {
         if (reverse) msg = "Bottom 5 by score:"
@@ -284,6 +285,7 @@ async function leaderboard(args) {
         if (rolls === null) "There was an error trying to fetch the rolls";
 
         rolls.sort(rollHandler.userScoreComparator(season));
+        if(reverse) rolls.reverse();    
     } else {
         return "arguments not recognized. Say leaderboard score or leaderboard roll";
     }
@@ -314,7 +316,7 @@ async function handleMessage(evt) {
     .then(console.log)
     .catch(console.error);*/
 
-    //if (evt.author.id != '279656190655463425') return;
+    if (evt.author.id != '279656190655463425') return;
 
     if (message.substring(0, 1) == '=') {
         var args = message.toLowerCase().substring(1).split(' ');

@@ -1,6 +1,8 @@
 1.2.1
 - fix season description
 - fix help message
+- fix daily message
+- fix reverse leaderboard
 
 1.2.0
 - fix removing reaction from bot message removes addicted role

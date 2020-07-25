@@ -99,10 +99,10 @@ function sendMessageToChannel(channelId, message) {
 module.exports.clearAllRankedRoles = clearAllRankedRoles;
 
 async function clearAllRankedRoles() {
-    var users = await honguGuild.members.cache.find(member=>member.id==="279656190655463425" );
+    var users = await honguGuild.members.fetch();
 
     users.forEach( u => {
-        clearRoles(honguGuild, u)   
-        giveRole("Unranked", honguGuild, u);
+        clearRoles(guild, user)   
+        giveRole("Unranked", guild, u);
     });
 }
